@@ -28,6 +28,11 @@ POLICY_ALIASES = {
     "proportional_navigation": "pn",
     "pn_kalman": "pn_kalman",
     "proportional_navigation_kalman": "pn_kalman",
+    "lead": "lead",
+    "lead_intercept": "lead",
+    "predictive_lead": "lead",
+    "lead_kalman": "lead_kalman",
+    "lead_intercept_kalman": "lead_kalman",
 }
 
 
@@ -38,7 +43,7 @@ def list_policies() -> list[str]:
     Returns:
         List of policy names that can be passed to get_policy().
     """
-    return ["greedy", "random", "ppo", "pn", "pn_kalman"]
+    return ["greedy", "random", "ppo", "pn", "pn_kalman", "lead", "lead_kalman"]
 
 
 def get_policy(name: str, **kwargs) -> Any:
@@ -54,6 +59,8 @@ def get_policy(name: str, **kwargs) -> Any:
         For "ppo": Required `model_path` (str), optional `deterministic` (bool).
         For "pn" / "pn_kalman": Optional `navigation_constant` (float),
             `min_pn_speed_fraction` (float), `config` (EnvConfig).
+        For "lead" / "lead_kalman": Optional `config` (EnvConfig), `dt`,
+            `v_d`, `eps` overrides.
     
     Returns:
         Policy instance with act(obs, info) and reset() methods.
@@ -68,6 +75,8 @@ def get_policy(name: str, **kwargs) -> Any:
         >>> policy = get_policy("ppo", model_path="models/policies/ppo_defender.zip")
         >>> policy = get_policy("pn")
         >>> policy = get_policy("pn_kalman", navigation_constant=4.0)
+        >>> policy = get_policy("lead")
+        >>> policy = get_policy("lead_kalman")
     """
     # Normalize name
     name_lower = name.lower().strip()
@@ -109,6 +118,16 @@ def get_policy(name: str, **kwargs) -> Any:
         kwargs.setdefault("state_source", "kalman")
         return ProportionalNavigationPolicy(**kwargs)
     
+    elif policy_type == "lead":
+        from uav_defend.policies.baseline.lead_intercept_policy import LeadInterceptPolicy
+        kwargs.setdefault("state_source", "measurement")
+        return LeadInterceptPolicy(**kwargs)
+    
+    elif policy_type == "lead_kalman":
+        from uav_defend.policies.baseline.lead_intercept_policy import LeadInterceptPolicy
+        kwargs.setdefault("state_source", "kalman")
+        return LeadInterceptPolicy(**kwargs)
+    
     else:
         raise ValueError(f"Policy type not implemented: {policy_type}")
 
@@ -134,5 +153,9 @@ def get_policy_name(policy) -> str:
     if class_name == "ProportionalNavigationPolicy":
         state_source = getattr(policy, "state_source", "measurement")
         return "pn_kalman" if state_source == "kalman" else "pn"
+    
+    if class_name == "LeadInterceptPolicy":
+        state_source = getattr(policy, "state_source", "measurement")
+        return "lead_kalman" if state_source == "kalman" else "lead"
     
     return name_map.get(class_name, class_name.lower())
