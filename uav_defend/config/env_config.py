@@ -67,6 +67,22 @@ class EnvConfig:
     enemy_max_climb_rate: float = 5.0           # m/s
     enemy_max_descent_rate: float = 5.0         # m/s
     
+    # =========================================================================
+    # Reactive Hostile-UAV Evasion (provisional simulation defaults, NOT
+    # hardware-derived quantities)
+    # - The hostile UAV keeps its primary mission (reach the soldier) but
+    #   increasingly biases its desired direction away from the defender as
+    #   the defender closes within enemy_evasion_radius. This is a
+    #   parameterized reactive evasive policy, not intelligent adversarial
+    #   RL, optimal-attacker, or game-theoretic behavior.
+    # - Evasion is independent of defender detection/sensor state: it models
+    #   the hostile UAV's own local awareness of an approaching interceptor,
+    #   not the defender's tracking of the hostile UAV.
+    # =========================================================================
+    enemy_evasion_enabled: bool = True    # If False, hostile guidance reduces to pursuit + weave (no evasion)
+    enemy_evasion_radius: float = 20.0    # m; 3D defender-enemy range at which evasion begins
+    enemy_evasion_gain: float = 0.75      # Dimensionless relative evasion strength, lambda_e in [0, 1]
+    
     # RL reward shaping parameters
     reward_intercept: float = 100.0  # Reward for intercepting enemy (WIN)
     reward_soldier_caught: float = -100.0  # Penalty for enemy catching soldier (LOSS)
@@ -156,4 +172,13 @@ class EnvConfig:
         if self.enemy_max_descent_rate <= 0:
             raise ValueError(
                 f"enemy_max_descent_rate must be > 0, got {self.enemy_max_descent_rate}"
+            )
+
+        if self.enemy_evasion_radius <= 0:
+            raise ValueError(
+                f"enemy_evasion_radius must be > 0, got {self.enemy_evasion_radius}"
+            )
+        if not (0 <= self.enemy_evasion_gain <= 1):
+            raise ValueError(
+                f"enemy_evasion_gain must be in [0, 1], got {self.enemy_evasion_gain}"
             )

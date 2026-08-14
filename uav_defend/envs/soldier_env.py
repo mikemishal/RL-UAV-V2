@@ -76,7 +76,12 @@ class SoldierEnv(gym.Env):
         - Enemy (e ∈ ℝ³): Persistent 3D velocity that tracks a weaving
           pursuit-commanded desired velocity, subject to the same class of
           dynamic limits; naturally descends toward the ground target while
-          pursuing.
+          pursuing. Uses pursuit toward the protected soldier with
+          stochastic weaving and proximity-triggered reactive evasion from
+          the defender, executed through constrained 3D point-mass
+          dynamics -- a parameterized reactive evasive policy, NOT
+          intelligent adversarial RL, optimal-attacker, or game-theoretic
+          behavior (see _compute_enemy_evasion and _move_enemy).
     
     Partial Observability with Shared Sensor Noise:
         - Before detection: Enemy state is MASKED (zeros)
@@ -228,6 +233,8 @@ class SoldierEnv(gym.Env):
         self._enemy_vel: np.ndarray | None = None      # Persistent 3D velocity [vx,vy,vz], m/s
         self._defender_dynamics_info: dict = {}  # Per-step dynamics diagnostics (see _advance_velocity)
         self._enemy_dynamics_info: dict = {}
+        self._enemy_evasion_info: dict = {}  # Per-step evasion diagnostics (see _compute_enemy_evasion)
+        self._enemy_pursuit_direction: np.ndarray | None = None  # Diagnostic only, shape (3,)
         self._weave_bias: float = 0.0  # AR(1) lateral weave bias 'a'
         self._step_count: int = 0
         self._enemy_detected: bool = False  # Tracking state: enemy detected?
@@ -290,6 +297,7 @@ class SoldierEnv(gym.Env):
             pursuit_dir = pursuit_dir / pursuit_norm
         else:
             pursuit_dir = np.array([1.0, 0.0, 0.0])  # Safe fallback (numerically degenerate case)
+        self._enemy_pursuit_direction = pursuit_dir.astype(np.float32)
         initial_enemy_vel = self.config.v_e * pursuit_dir
         # Respect the vertical-rate invariant maintained everywhere else:
         # clip the initial vertical component to [-max_descent, max_climb]
@@ -311,6 +319,9 @@ class SoldierEnv(gym.Env):
             "climb_saturated": False,
         }
         self._enemy_dynamics_info = dict(self._defender_dynamics_info)
+        
+        # Reset per-step evasion diagnostics (see _compute_enemy_evasion)
+        self._enemy_evasion_info = self._compute_enemy_evasion(self._defender_pos, self._enemy_pos)
         
         # Initialize weave bias to zero: a0 = 0
         self._weave_bias = 0.0
@@ -860,38 +871,136 @@ class SoldierEnv(gym.Env):
         
         self._soldier_pos = new_pos.astype(np.float32)
     
+    def _compute_enemy_evasion(
+        self,
+        defender_pos: np.ndarray,
+        enemy_pos: np.ndarray,
+    ) -> dict:
+        """
+        Compute the hostile UAV's reactive evasion component away from the
+        defender's current position.
+
+        This models the hostile UAV's OWN local awareness of an approaching
+        interceptor (e.g. proximity/threat sensing on the attacking drone
+        itself), NOT the defender's detection/tracking state. It is
+        intentionally independent of self._enemy_detected -- the hostile
+        UAV's behavior is not coupled to whether the defender has acquired
+        a track on it.
+
+        Activation increases smoothly (no binary switch) as the true 3D
+        defender-enemy distance closes within enemy_evasion_radius:
+
+            alpha(d) = clip(1 - d / R_e, 0, 1)
+
+        so alpha=0 at d >= R_e, alpha=0.5 at d = R_e/2, and alpha -> 1 as
+        d -> 0. The evasion component (before combination with pursuit/weave
+        and before final normalization) is:
+
+            evasion_component = enemy_evasion_gain * alpha * u_away
+
+        where u_away = (enemy_pos - defender_pos) / ||enemy_pos - defender_pos||
+        is the full 3D direction from the defender toward the hostile UAV.
+
+        When enemy_evasion_enabled is False, activation (and therefore the
+        evasion component) is forced to zero regardless of distance -- this
+        provides an exact no-evasion ablation.
+
+        Args:
+            defender_pos: Defender position, shape (3,).
+            enemy_pos: Hostile UAV position, shape (3,).
+
+        Returns:
+            dict with keys:
+                "distance" (float): true 3D defender-enemy range.
+                "activation" (float): alpha, in [0, 1].
+                "effective_weight" (float): enemy_evasion_gain * alpha, in
+                    [0, enemy_evasion_gain].
+                "away_direction" (np.ndarray, shape (3,)): u_away.
+                "evasion_component" (np.ndarray, shape (3,)): the
+                    pre-combination, pre-normalization evasion vector.
+        """
+        eps = self.config.eps
+        R_e = self.config.enemy_evasion_radius
+        lambda_e = self.config.enemy_evasion_gain
+
+        diff = enemy_pos - defender_pos
+        distance = float(np.linalg.norm(diff))
+
+        if distance > eps:
+            away_direction = diff / distance
+        else:
+            # Defender and enemy numerically co-located: safe deterministic
+            # fallback (no RNG call -- preserves reproducibility) rather
+            # than dividing by zero or producing NaN.
+            away_direction = np.array([0.0, 0.0, 1.0])
+
+        if self.config.enemy_evasion_enabled:
+            activation = float(np.clip(1.0 - distance / R_e, 0.0, 1.0))
+        else:
+            activation = 0.0
+
+        effective_weight = lambda_e * activation
+        evasion_component = effective_weight * away_direction
+
+        return {
+            "distance": distance,
+            "activation": activation,
+            "effective_weight": effective_weight,
+            "away_direction": away_direction.astype(np.float32),
+            "evasion_component": evasion_component.astype(np.float32),
+        }
+    
     def _move_enemy(self) -> None:
         """
-        Move the enemy with a stochastic weaving pursuit policy in 3D,
-        using constrained point-mass dynamics.
+        Move the enemy with a stochastic weaving pursuit policy in 3D, with
+        proximity-triggered reactive evasion from the defender, using
+        constrained point-mass dynamics.
+        
+        The hostile UAV retains its primary mission -- reach the protected
+        soldier -- but increasingly biases its desired direction away from
+        the defender as the defender closes within enemy_evasion_radius.
+        This is a parameterized reactive evasive policy layered onto the
+        attack mission (NOT a retreat policy, NOT intelligent adversarial
+        RL, NOT game-theoretic or optimal-attacker behavior, and NOT
+        proportional navigation / lead pursuit / constant-bearing guidance).
         
         Weaving pursuit GUIDANCE (unchanged from the 3D-foundation task):
         1. Compute vector to soldier: r = s - e (full 3D; since the soldier
            is always at z=0, this naturally drives the enemy to descend
            toward the ground target as it pursues)
-        2. Unit vector toward soldier: r_hat = r / (||r|| + eps)
+        2. Unit vector toward soldier: r_hat = r / (||r|| + eps)  -- the
+           pursuit component u_p, preserved unchanged and never replaced.
         3. Horizontal lateral unit vector: lateral = [-r_hat_y, r_hat_x, 0],
            normalized; falls back to a fixed horizontal direction if the
            pursuit direction is (near-)vertical and the horizontal
            component is degenerate (norm <= eps)
         4. Update weave bias (AR(1)): a <- rho * a + sigma_a * eta, eta ~ N(0,1)
         5. Heading noise: z ~ N(0, I_3) (generalized to 3 dimensions)
+        
+        REACTIVE EVASION (new in this task): _compute_enemy_evasion()
+        computes a smoothly-activated 3D component pointing away from the
+        defender's current position (see that method's docstring for the
+        activation formula). This is added alongside pursuit/weave/noise,
+        NOT in place of them.
+        
         6. Unnormalized direction: u_raw = r_hat + a * lateral + sigma_e * z
+           + evasion_component
         7. Normalize: u = u_raw / (||u_raw|| + eps)
         
-        DYNAMICS (new in this task): guidance now produces a DESIRED
-        velocity direction, not instantaneous motion. desired_velocity =
-        v_e * u is fed through the same reusable constrained-velocity update
-        used by the defender (_advance_velocity), subject to
-        enemy_max_accel, enemy_max_turn_rate_deg, enemy_max_climb_rate, and
-        enemy_max_descent_rate. Position is then integrated as
+        DYNAMICS (unchanged from the constrained-dynamics task): guidance
+        produces a DESIRED velocity direction, not instantaneous motion.
+        desired_velocity = v_e * u is fed through the same reusable
+        constrained-velocity update used by the defender (_advance_velocity),
+        subject to enemy_max_accel, enemy_max_turn_rate_deg,
+        enemy_max_climb_rate, and enemy_max_descent_rate -- evasion cannot
+        bypass these limits. Position is then integrated as
         p_{t+1} = p_t + v_{t+1} * dt, followed by physically consistent
         boundary handling (_apply_boundary).
         
         Note: vertical weaving is NOT modeled here; altitude change results
-        only from 3D pursuit of the ground-level soldier target. Hostile
-        evasion, proportional navigation, and lead pursuit are NOT modeled
-        here either (deferred to a later task).
+        from 3D pursuit of the ground-level soldier target and/or 3D
+        evasive maneuvering. Proportional navigation and lead pursuit are
+        NOT modeled here (deferred to a later task).
         """
         eps = self.config.eps
         
@@ -899,7 +1008,7 @@ class SoldierEnv(gym.Env):
         r = self._soldier_pos - self._enemy_pos
         r_norm = np.linalg.norm(r)
         
-        # Unit vector toward soldier
+        # Unit vector toward soldier (pursuit component u_p)
         if r_norm > eps:
             r_hat = r / r_norm
         else:
@@ -910,6 +1019,7 @@ class SoldierEnv(gym.Env):
                 r_hat = rand_vec / rand_norm
             else:
                 r_hat = np.array([1.0, 0.0, 0.0])
+        self._enemy_pursuit_direction = r_hat.astype(np.float32)
         
         # Horizontal lateral vector (perpendicular to the horizontal
         # projection of the pursuit direction, 90° CCW rotation in XY)
@@ -930,9 +1040,14 @@ class SoldierEnv(gym.Env):
         # Heading noise, generalized to 3 dimensions
         z = self._np_random.normal(0.0, 1.0, size=(3,))
         
+        # Reactive evasion: intentionally independent of self._enemy_detected
+        # (see _compute_enemy_evasion docstring).
+        evasion_info = self._compute_enemy_evasion(self._defender_pos, self._enemy_pos)
+        self._enemy_evasion_info = evasion_info
+        
         # Unnormalized direction with weave amplitude multiplier (horizontal weave only)
         weave_component = self._weave_bias * self.config.weave_amplitude * lateral
-        u_raw = r_hat + weave_component + self.config.sigma_e * z
+        u_raw = r_hat + weave_component + self.config.sigma_e * z + evasion_info["evasion_component"]
         
         # Normalize direction
         u_norm = np.linalg.norm(u_raw)
@@ -1117,6 +1232,11 @@ class SoldierEnv(gym.Env):
         _move_defender() / _move_enemy() and are NOT part of the RL
         observation (only defender_vel is observable, per the observation
         layout above).
+        
+        Hostile-evasion diagnostic fields (enemy_evasion_*, enemy_pursuit_direction)
+        are computed by _compute_enemy_evasion() during _move_enemy() and are
+        likewise NOT part of the RL observation -- the defender must respond
+        to evasion only through its normal sensor/estimation observations.
         """
         # Check if current state is in unsafe intercept zone
         unsafe_zone = enemy_soldier_dist <= self.config.unsafe_intercept_radius
@@ -1146,6 +1266,23 @@ class SoldierEnv(gym.Env):
             "enemy_turn_saturated": self._enemy_dynamics_info["turn_saturated"],
             "defender_climb_saturated": self._defender_dynamics_info["climb_saturated"],
             "enemy_climb_saturated": self._enemy_dynamics_info["climb_saturated"],
+            # Hostile-evasion diagnostics (NOT part of the RL observation)
+            "enemy_evasion_active": bool(
+                self.config.enemy_evasion_enabled
+                and self._enemy_evasion_info.get("activation", 0.0) > 0.0
+                and self.config.enemy_evasion_gain > 0.0
+            ),
+            "enemy_evasion_activation": self._enemy_evasion_info.get("activation", 0.0),
+            "enemy_evasion_gain": self.config.enemy_evasion_gain,
+            "enemy_evasion_weight": self._enemy_evasion_info.get("effective_weight", 0.0),
+            "enemy_evasion_vector": self._enemy_evasion_info.get(
+                "evasion_component", np.zeros(3, dtype=np.float32)
+            ).copy(),
+            "enemy_pursuit_direction": (
+                self._enemy_pursuit_direction.copy()
+                if self._enemy_pursuit_direction is not None
+                else np.zeros(3, dtype=np.float32)
+            ),
             "weave_bias": self._weave_bias,
             "enemy_soldier_dist": enemy_soldier_dist,
             "defender_enemy_dist": defender_enemy_dist,
