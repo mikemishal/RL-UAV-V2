@@ -24,6 +24,10 @@ POLICY_ALIASES = {
     "random": "random",
     "ppo": "ppo",
     "rl": "ppo",
+    "pn": "pn",
+    "proportional_navigation": "pn",
+    "pn_kalman": "pn_kalman",
+    "proportional_navigation_kalman": "pn_kalman",
 }
 
 
@@ -34,7 +38,7 @@ def list_policies() -> list[str]:
     Returns:
         List of policy names that can be passed to get_policy().
     """
-    return ["greedy", "random", "ppo"]
+    return ["greedy", "random", "ppo", "pn", "pn_kalman"]
 
 
 def get_policy(name: str, **kwargs) -> Any:
@@ -48,6 +52,8 @@ def get_policy(name: str, **kwargs) -> Any:
         For "greedy": No additional arguments.
         For "random": Optional `seed` (int).
         For "ppo": Required `model_path` (str), optional `deterministic` (bool).
+        For "pn" / "pn_kalman": Optional `navigation_constant` (float),
+            `min_pn_speed_fraction` (float), `config` (EnvConfig).
     
     Returns:
         Policy instance with act(obs, info) and reset() methods.
@@ -60,6 +66,8 @@ def get_policy(name: str, **kwargs) -> Any:
         >>> policy = get_policy("greedy")
         >>> policy = get_policy("random", seed=42)
         >>> policy = get_policy("ppo", model_path="models/policies/ppo_defender.zip")
+        >>> policy = get_policy("pn")
+        >>> policy = get_policy("pn_kalman", navigation_constant=4.0)
     """
     # Normalize name
     name_lower = name.lower().strip()
@@ -87,6 +95,20 @@ def get_policy(name: str, **kwargs) -> Any:
         deterministic = kwargs.pop("deterministic", True)
         return PPOPolicyWrapper.load(model_path, deterministic=deterministic)
     
+    elif policy_type == "pn":
+        from uav_defend.policies.baseline.proportional_navigation_policy import (
+            ProportionalNavigationPolicy,
+        )
+        kwargs.setdefault("state_source", "measurement")
+        return ProportionalNavigationPolicy(**kwargs)
+    
+    elif policy_type == "pn_kalman":
+        from uav_defend.policies.baseline.proportional_navigation_policy import (
+            ProportionalNavigationPolicy,
+        )
+        kwargs.setdefault("state_source", "kalman")
+        return ProportionalNavigationPolicy(**kwargs)
+    
     else:
         raise ValueError(f"Policy type not implemented: {policy_type}")
 
@@ -108,5 +130,9 @@ def get_policy_name(policy) -> str:
         "RandomPolicy": "random",
         "PPOPolicyWrapper": "ppo",
     }
+    
+    if class_name == "ProportionalNavigationPolicy":
+        state_source = getattr(policy, "state_source", "measurement")
+        return "pn_kalman" if state_source == "kalman" else "pn"
     
     return name_map.get(class_name, class_name.lower())
