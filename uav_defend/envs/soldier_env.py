@@ -26,7 +26,12 @@ from uav_defend.tracking import EnemyKalmanFilter
 
 class SoldierEnv(gym.Env):
     """
-    A 2D discrete-time environment for RL training with partial observability.
+    A three-dimensional constrained point-mass engagement environment for RL
+    training with partial observability.
+
+    NOTE: This is a 3D KINEMATIC simulator. Entities move instantaneously in
+    a chosen direction at a fixed speed (no acceleration, inertia, turn-rate,
+    or climb-rate constraints). Those dynamics are introduced in later tasks.
     
     ============================================================================
     UNIFIED ENVIRONMENT FOR BASELINE AND RL
@@ -55,34 +60,42 @@ class SoldierEnv(gym.Env):
         model.learn(total_timesteps=100000)
     ============================================================================
     
-    Domain: Ω = [-L, L]² (square centered at origin).
+    Domain: 3D engagement volume, x, y ∈ [-L, L] (horizontal) and z ∈ [0, H]
+    (altitude), where H = max_altitude.
     
     Entities:
-        - Soldier (s ∈ ℝ²): Gaussian random walk (uncontrolled)
-        - Defender (d ∈ ℝ²): Controlled by external policy via 2D action
-        - Enemy (e ∈ ℝ²): Weaving pursuit toward soldier (uncontrolled)
+        - Soldier (s ∈ ℝ³): Planar Gaussian random walk (uncontrolled); always
+          remains a ground entity with s_z = 0 at all times.
+        - Defender (d ∈ ℝ³): Controlled by external policy via 3D action
+        - Enemy (e ∈ ℝ³): Weaving pursuit toward soldier (uncontrolled);
+          naturally descends toward the ground target while pursuing
     
     Partial Observability with Shared Sensor Noise:
         - Before detection: Enemy state is MASKED (zeros)
         - After detection: a noisy enemy-position measurement is generated every step
         - If Kalman is enabled, e_hat/v_hat come from filtered estimates of that measurement
         - If Kalman is disabled, e_hat is the raw noisy measurement and v_hat is zero
-        - Detection occurs when defender is within detection_radius of enemy
+        - Detection occurs when defender is within detection_radius of enemy (3D distance)
         - Policies never receive the true enemy state through observation channels
         - Defender motion is controlled entirely by external policy (action-driven)
     
-    Observation Space (spaces.Box, shape=9, dtype=float32):
+    Observation Space (spaces.Box, shape=13, dtype=float32):
         All values normalized to [-1, 1]:
-                [soldier_x, soldier_y, defender_x, defender_y, detected_flag, x1, x2, x3, x4]
+            [soldier_x, soldier_y, soldier_z,
+             defender_x, defender_y, defender_z,
+             detected_flag,
+             enemy_info_1..3, enemy_info_4..6]
         - detected_flag: 0.0 (not detected) or 1.0 (detected)
                 - If use_kalman_tracking=True:
-                    x1, x2 = e_hat_x, e_hat_y (Kalman estimate), x3, x4 = v_hat_x, v_hat_y
+                    enemy_info_1..3 = e_hat (Kalman estimated position),
+                    enemy_info_4..6 = v_hat (Kalman estimated velocity)
                 - If use_kalman_tracking=False:
-                    x1, x2 = measured enemy position, x3, x4 = defender-to-measurement vector
+                    enemy_info_1..3 = raw noisy enemy position measurement,
+                    enemy_info_4..6 = defender-to-measurement relative vector
         - All enemy-related values are 0.0 before detection
     
-    Action Space (spaces.Box, shape=2, dtype=float32):
-        2D continuous action vector in [-1, 1]².
+    Action Space (spaces.Box, shape=3, dtype=float32):
+        3D continuous action vector in [-1, 1]³.
         - Normalized to unit vector if norm > eps
         - Defender displacement = v_d * dt * normalized_action
         - If action norm < eps, defender does not move
@@ -96,7 +109,7 @@ class SoldierEnv(gym.Env):
         +5.0 * (prev_dist - curr_dist) for closing distance to enemy
         -0.05 per step (encourages efficiency)
     
-    Termination:
+    Termination (all distances are true 3D Euclidean distances):
         - Intercepted safely: dist_de < intercept_radius AND dist_es > unsafe_intercept_radius (WIN)
         - Soldier caught: dist_es < threat_radius (LOSS)
         - Unsafe intercept: dist_de < intercept_radius AND dist_es <= unsafe_intercept_radius (LOSS)
@@ -119,7 +132,7 @@ class SoldierEnv(gym.Env):
         """
         Initialize the SoldierEnv.
         
-        This environment is policy-agnostic: it accepts any 2D action vector
+        This environment is policy-agnostic: it accepts any 3D action vector
         for defender control, whether from a scripted baseline or RL algorithm.
         
         Args:
@@ -147,8 +160,8 @@ class SoldierEnv(gym.Env):
         # =====================================================================
         # OBSERVATION SPACE (fixed-size, normalized for RL)
         # =====================================================================
-        # Shape: (9,), all values in [-1, 1]
-        # Layout: [soldier(2), defender(2), detected_flag(1), enemy_info(4)]
+        # Shape: (13,), all values in [-1, 1]
+        # Layout: [soldier(3), defender(3), detected_flag(1), enemy_info(6)]
         #
         # If config.use_kalman_tracking=True (RL-Kalman track):
         #   - e_hat: Kalman estimated enemy position (zeros before detection)
@@ -162,7 +175,7 @@ class SoldierEnv(gym.Env):
         self.observation_space = spaces.Box(
             low=-1.0,
             high=1.0,
-            shape=(9,),
+            shape=(13,),
             dtype=np.float32,
         )
         
@@ -170,10 +183,10 @@ class SoldierEnv(gym.Env):
         self._prev_defender_enemy_dist: float = 0.0
         
         # =====================================================================
-        # ACTION SPACE (2D continuous heading vector)
+        # ACTION SPACE (3D continuous heading vector)
         # =====================================================================
-        # Shape: (2,), values in [-1, 1]
-        # Interpretation: 2D direction vector for defender movement
+        # Shape: (3,), values in [-1, 1]
+        # Interpretation: 3D direction vector for defender movement
         #   - Normalized to unit vector if norm > eps
         #   - Defender moves: displacement = v_d * dt * normalized_action
         #   - If norm < eps, defender stays stationary
@@ -184,7 +197,7 @@ class SoldierEnv(gym.Env):
         self.action_space = spaces.Box(
             low=-1.0,
             high=1.0,
-            shape=(2,),
+            shape=(3,),
             dtype=np.float32,
         )
         
@@ -217,23 +230,24 @@ class SoldierEnv(gym.Env):
         """
         Reset the environment to an initial state.
         
-        The soldier is initialized at the origin (0, 0).
+        The soldier is initialized at the origin (0, 0, 0) and remains a
+        ground entity (z = 0) for the entire episode.
         
         Args:
             seed: Random seed for reproducibility.
             options: Additional options (unused).
         
         Returns:
-            observation: Soldier position with shape (2,).
+            observation: Shape (13,) normalized state vector.
             info: Additional information dict.
         """
         super().reset(seed=seed)
         self._np_random = np.random.default_rng(seed)
         
-        # Initialize soldier at the origin
-        self._soldier_pos = np.array([0.0, 0.0], dtype=np.float32)
+        # Initialize soldier at the origin, on the ground (z = 0)
+        self._soldier_pos = np.array([0.0, 0.0, 0.0], dtype=np.float32)
         
-        # Initialize defender co-located with soldier: d0 = s0
+        # Initialize defender co-located with soldier: d0 = s0 = [x, y, 0]
         self._defender_pos = self._soldier_pos.copy()
         
         # Initialize enemy at random position on boundary edge
@@ -265,26 +279,34 @@ class SoldierEnv(gym.Env):
     
     def _spawn_enemy_at_edge(self) -> np.ndarray:
         """
-        Spawn enemy at a random location on the boundary of [-L, L]².
+        Spawn enemy at a random location on the vertical lateral boundary of
+        the 3D engagement volume, i.e. on the perimeter of the horizontal
+        square [-L, L]² at a randomly sampled altitude.
         
-        Uniformly choose one of four edges, then sample a coordinate
-        uniformly along that edge.
+        Uniformly choose one of four horizontal edges (x = ±L or y = ±L), then
+        sample the other horizontal coordinate uniformly along that edge, and
+        independently sample altitude z ~ Uniform(enemy_spawn_altitude_min,
+        enemy_spawn_altitude_max).
         
         Returns:
-            Enemy position array of shape (2,).
+            Enemy position array of shape (3,).
         """
         L = self.config.L
         edge = self._np_random.integers(0, 4)  # 0=top, 1=bottom, 2=left, 3=right
         coord = self._np_random.uniform(-L, L)  # Position along the edge
+        z = self._np_random.uniform(
+            self.config.enemy_spawn_altitude_min,
+            self.config.enemy_spawn_altitude_max,
+        )
         
         if edge == 0:  # Top edge: y = L
-            return np.array([coord, L], dtype=np.float32)
+            return np.array([coord, L, z], dtype=np.float32)
         elif edge == 1:  # Bottom edge: y = -L
-            return np.array([coord, -L], dtype=np.float32)
+            return np.array([coord, -L, z], dtype=np.float32)
         elif edge == 2:  # Left edge: x = -L
-            return np.array([-L, coord], dtype=np.float32)
+            return np.array([-L, coord, z], dtype=np.float32)
         else:  # Right edge: x = L
-            return np.array([L, coord], dtype=np.float32)
+            return np.array([L, coord, z], dtype=np.float32)
     
     def step(
         self,
@@ -298,7 +320,7 @@ class SoldierEnv(gym.Env):
         updates all other entities (soldier, enemy) and computes reward.
         
         Args:
-            action: 2D continuous action vector in [-1, 1]², shape=(2,).
+            action: 3D continuous action vector in [-1, 1]³, shape=(3,).
                    This can come from:
                      - Scripted policy: policy.act(obs, info) -> np.ndarray
                      - RL algorithm: model.predict(obs) -> (action, state)
@@ -306,7 +328,7 @@ class SoldierEnv(gym.Env):
                    If norm < eps, defender does not move.
         
         Returns:
-            observation: Shape (9,) normalized state vector.
+            observation: Shape (13,) normalized state vector.
             reward: Scalar reward (dense shaping for RL training).
             terminated: True if episode ended (win/loss/timeout).
             truncated: Always False (no external truncation).
@@ -426,7 +448,7 @@ class SoldierEnv(gym.Env):
         Move the defender drone based on externally provided action.
         
         Args:
-            action: 2D continuous action vector in [-1, 1]².
+            action: 3D continuous action vector in [-1, 1]³.
                    Normalized to unit vector if norm > eps.
                    Defender displacement = v_d * dt * normalized_action.
                    If action norm < eps, defender does not move.
@@ -487,7 +509,7 @@ class SoldierEnv(gym.Env):
                 self._enemy_detected = True  # Start tracking!
                 self._enemy_measurement = (
                     self._enemy_pos
-                    + self._np_random.normal(0.0, self._measurement_noise_std, size=(2,))
+                    + self._np_random.normal(0.0, self._measurement_noise_std, size=(3,))
                 ).astype(np.float32)
                 
                 if self.config.use_kalman_tracking:
@@ -503,12 +525,12 @@ class SoldierEnv(gym.Env):
                 else:
                     # No Kalman: use raw noisy measurement directly.
                     self._e_hat = self._enemy_measurement.copy()
-                    self._v_hat = np.zeros(2, dtype=np.float32)  # Velocity unknown without filter
+                    self._v_hat = np.zeros(3, dtype=np.float32)  # Velocity unknown without filter
         else:
             # Already detected: update tracking
             self._enemy_measurement = (
                 self._enemy_pos
-                + self._np_random.normal(0.0, self._measurement_noise_std, size=(2,))
+                + self._np_random.normal(0.0, self._measurement_noise_std, size=(3,))
             ).astype(np.float32)
             if self.config.use_kalman_tracking and self._kf is not None:
                 # Kalman predict + update with noisy measurement
@@ -528,47 +550,64 @@ class SoldierEnv(gym.Env):
                 # No Kalman: expose raw noisy measurement directly.
                 # v_hat is not available without a filter; keep as zeros.
                 self._e_hat = self._enemy_measurement.copy()
-                self._v_hat = np.zeros(2, dtype=np.float32)
+                self._v_hat = np.zeros(3, dtype=np.float32)
     
     def _move_soldier(self) -> None:
         """
         Move the soldier with a true Gaussian random walk.
         
-        - Sample 2D Gaussian displacement with scale σ = v_s * dt
+        The soldier remains a ground entity: only x, y are perturbed and
+        z is held fixed at 0.0 at all times (no vertical motion).
+        
+        - Sample 2D (horizontal) Gaussian displacement with scale σ = v_s * dt
         - Variable step magnitude (Gaussian-distributed)
-        - Reflecting boundary conditions at [-L, L]²
+        - Reflecting boundary conditions at [-L, L]² (horizontal only)
         """
-        # True Gaussian random walk: sample displacement directly
+        # True Gaussian random walk: sample horizontal displacement directly
         # Scale (standard deviation) determines typical step size
         sigma = self.config.v_s * self.config.dt
-        displacement = self._np_random.normal(loc=0.0, scale=sigma, size=(2,))
+        displacement_xy = self._np_random.normal(loc=0.0, scale=sigma, size=(2,))
+        displacement = np.array(
+            [displacement_xy[0], displacement_xy[1], 0.0], dtype=np.float32
+        )
         
         # Update position
         new_pos = self._soldier_pos + displacement
         
-        # Reflecting boundary conditions at [-L, L]²
+        # Reflecting boundary conditions at [-L, L]² × [0, H]
         new_pos = self._reflect_boundary(new_pos)
+        
+        # Soldier is a ground entity: enforce z = 0 explicitly
+        new_pos[2] = 0.0
         
         self._soldier_pos = new_pos.astype(np.float32)
     
     def _move_enemy(self) -> None:
         """
-        Move the enemy with a stochastic weaving pursuit policy.
+        Move the enemy with a stochastic weaving pursuit policy in 3D.
         
         Weaving pursuit dynamics:
-        1. Compute vector to soldier: r = s - e
+        1. Compute vector to soldier: r = s - e (full 3D; since the soldier
+           is always at z=0, this naturally drives the enemy to descend
+           toward the ground target as it pursues)
         2. Unit vector toward soldier: r_hat = r / (||r|| + eps)
-        3. Perpendicular unit vector: r_perp = [-r_hat[1], r_hat[0]]
+        3. Horizontal lateral unit vector: lateral = [-r_hat_y, r_hat_x, 0],
+           normalized; falls back to a fixed horizontal direction if the
+           pursuit direction is (near-)vertical and the horizontal
+           component is degenerate (norm <= eps)
         4. Update weave bias (AR(1)): a <- rho * a + sigma_a * eta, eta ~ N(0,1)
-        5. Heading noise: z ~ N(0, I_2)
-        6. Unnormalized direction: u_raw = r_hat + a * r_perp + sigma_e * z
+        5. Heading noise: z ~ N(0, I_3) (generalized to 3 dimensions)
+        6. Unnormalized direction: u_raw = r_hat + a * lateral + sigma_e * z
         7. Normalize: u = u_raw / (||u_raw|| + eps)
         8. Move: e_next = e + v_e * dt * u
-        9. Apply reflecting boundary conditions
+        9. Apply reflecting boundary conditions ([-L, L]² × [0, H])
+        
+        Note: vertical weaving is NOT modeled here; altitude change results
+        only from 3D pursuit of the ground-level soldier target.
         """
         eps = self.config.eps
         
-        # Vector from enemy to soldier
+        # Vector from enemy to soldier (full 3D)
         r = self._soldier_pos - self._enemy_pos
         r_norm = np.linalg.norm(r)
         
@@ -576,22 +615,35 @@ class SoldierEnv(gym.Env):
         if r_norm > eps:
             r_hat = r / r_norm
         else:
-            # Enemy is on top of soldier, pick random direction
-            angle = self._np_random.uniform(0, 2 * np.pi)
-            r_hat = np.array([np.cos(angle), np.sin(angle)])
+            # Enemy is on top of soldier, pick a random 3D unit direction
+            rand_vec = self._np_random.normal(0.0, 1.0, size=(3,))
+            rand_norm = np.linalg.norm(rand_vec)
+            if rand_norm > eps:
+                r_hat = rand_vec / rand_norm
+            else:
+                r_hat = np.array([1.0, 0.0, 0.0])
         
-        # Perpendicular unit vector (90° CCW rotation)
-        r_perp = np.array([-r_hat[1], r_hat[0]])
+        # Horizontal lateral vector (perpendicular to the horizontal
+        # projection of the pursuit direction, 90° CCW rotation in XY)
+        lateral_raw = np.array([-r_hat[1], r_hat[0], 0.0])
+        lateral_norm = np.linalg.norm(lateral_raw)
+        if lateral_norm > eps:
+            lateral = lateral_raw / lateral_norm
+        else:
+            # Pursuit direction is (near-)vertical: horizontal weave axis is
+            # degenerate. Fall back to a fixed horizontal direction rather
+            # than dividing by zero.
+            lateral = np.array([1.0, 0.0, 0.0])
         
         # Update weave bias with AR(1) process: a <- rho * a + sigma_a * eta
         eta = self._np_random.normal(0.0, 1.0)
         self._weave_bias = self.config.rho * self._weave_bias + self.config.sigma_a * eta
         
-        # Heading noise
-        z = self._np_random.normal(0.0, 1.0, size=(2,))
+        # Heading noise, generalized to 3 dimensions
+        z = self._np_random.normal(0.0, 1.0, size=(3,))
         
-        # Unnormalized direction with weave amplitude multiplier
-        weave_component = self._weave_bias * self.config.weave_amplitude * r_perp
+        # Unnormalized direction with weave amplitude multiplier (horizontal weave only)
+        weave_component = self._weave_bias * self.config.weave_amplitude * lateral
         u_raw = r_hat + weave_component + self.config.sigma_e * z
         
         # Normalize direction
@@ -612,27 +664,52 @@ class SoldierEnv(gym.Env):
     
     def _reflect_boundary(self, pos: np.ndarray) -> np.ndarray:
         """
-        Apply reflecting boundary conditions at [-L, L]².
+        Apply reflecting boundary conditions within the 3D engagement volume:
+        x, y ∈ [-L, L] and z ∈ [0, H] where H = max_altitude.
         
-        If position exceeds boundary, reflect it back into domain.
+        If position exceeds a boundary, reflect it back into the domain.
+        This is applied independently per axis, with the ground (z=0) and
+        ceiling (z=H) acting as reflecting boundaries for altitude, exactly
+        as the horizontal walls do for x and y.
         
         Args:
-            pos: Position array of shape (2,).
+            pos: Position array of shape (3,).
         
         Returns:
-            Reflected position within [-L, L]².
+            Reflected position within [-L, L]² × [0, H].
         """
         L = self.config.L
+        H = self.config.max_altitude
+        lo = (-L, -L, 0.0)
+        hi = (L, L, H)
         
-        for i in range(2):
+        for i in range(3):
             # Reflect until within bounds (handles multiple reflections)
-            while pos[i] < -L or pos[i] > L:
-                if pos[i] < -L:
-                    pos[i] = -2 * L - pos[i]  # Reflect off lower boundary
-                if pos[i] > L:
-                    pos[i] = 2 * L - pos[i]  # Reflect off upper boundary
+            while pos[i] < lo[i] or pos[i] > hi[i]:
+                if pos[i] < lo[i]:
+                    pos[i] = 2 * lo[i] - pos[i]  # Reflect off lower boundary
+                if pos[i] > hi[i]:
+                    pos[i] = 2 * hi[i] - pos[i]  # Reflect off upper boundary
         
         return pos
+    
+    def _normalize_pos(self, pos: np.ndarray) -> np.ndarray:
+        """
+        Normalize a 3D position vector to a dimensionally-appropriate scale.
+        
+        Horizontal coordinates (x, y) are normalized by L (placing them in
+        [-1, 1]); altitude (z) is normalized by max_altitude (placing it in
+        [0, 1], a valid subset of the overall [-1, 1] Box).
+        
+        Args:
+            pos: Position array of shape (3,).
+        
+        Returns:
+            Normalized position array of shape (3,).
+        """
+        L = self.config.L
+        H = self.config.max_altitude
+        return np.array([pos[0] / L, pos[1] / L, pos[2] / H], dtype=np.float32)
     
     def _get_obs(self) -> np.ndarray:
         """
@@ -641,30 +718,32 @@ class SoldierEnv(gym.Env):
         The observation format depends on config.use_kalman_tracking:
         
         Returns:
-            obs: Array of shape (9,), all values normalized to [-1, 1].
+            obs: Array of shape (13,), all values normalized to [-1, 1].
             
             If config.use_kalman_tracking=True (RL-Kalman track):
-                [soldier_x, soldier_y, defender_x, defender_y, detected_flag,
-                 e_hat_x, e_hat_y, v_hat_x, v_hat_y]
-                - e_hat: Kalman estimated enemy position (normalized by L)
+                [soldier(3), defender(3), detected_flag(1), e_hat(3), v_hat(3)]
+                - e_hat: Kalman estimated enemy position (x,y normalized by L,
+                  z normalized by max_altitude)
                 - v_hat: Kalman estimated enemy velocity (normalized by v_e)
                 - All enemy info is zeros before detection
                 - Policy acts on ESTIMATED state, not ground truth
                 
             If config.use_kalman_tracking=False (direct RL track):
-                [soldier_x, soldier_y, defender_x, defender_y, detected_flag,
-                 meas_x, meas_y, rel_x, rel_y]
-                - meas: noisy enemy position measurement (normalized by L)
-                - rel: relative position from defender to measurement (normalized by L)
+                [soldier(3), defender(3), detected_flag(1), meas(3), rel(3)]
+                - meas: noisy enemy position measurement (x,y normalized by L,
+                  z normalized by max_altitude)
+                - rel: relative vector from defender to measurement (x,y
+                  normalized by L, z normalized by max_altitude)
                 - All enemy info is zeros before detection
                 - Policy acts on measured state without filtering
         """
         L = self.config.L
+        H = self.config.max_altitude
         v_e = self.config.v_e
         
-        # Normalize positions to [-1, 1]
-        soldier_norm = self._soldier_pos / L
-        defender_norm = self._defender_pos / L
+        # Normalize positions
+        soldier_norm = self._normalize_pos(self._soldier_pos)
+        defender_norm = self._normalize_pos(self._defender_pos)
         
         # Detection flag
         detected_flag = np.array([1.0 if self._enemy_detected else 0.0])
@@ -673,11 +752,11 @@ class SoldierEnv(gym.Env):
             # RL-KALMAN TRACK: Use Kalman filter estimates
             # Policy acts on estimated state, not ground truth
             if self._enemy_detected and self._e_hat is not None:
-                e_hat_norm = np.clip(self._e_hat / L, -1.0, 1.0)
+                e_hat_norm = np.clip(self._normalize_pos(self._e_hat), -1.0, 1.0)
                 v_hat_norm = np.clip(self._v_hat / v_e, -1.0, 1.0)
             else:
-                e_hat_norm = np.array([0.0, 0.0])
-                v_hat_norm = np.array([0.0, 0.0])
+                e_hat_norm = np.zeros(3, dtype=np.float32)
+                v_hat_norm = np.zeros(3, dtype=np.float32)
             
             return np.concatenate([
                 soldier_norm, 
@@ -689,12 +768,15 @@ class SoldierEnv(gym.Env):
         else:
             # DIRECT RL TRACK: Use raw noisy measurement
             if self._enemy_detected and self._enemy_measurement is not None:
-                enemy_norm = self._enemy_measurement / L
-                defender_to_enemy = (self._enemy_measurement - self._defender_pos) / L
-                defender_to_enemy = np.clip(defender_to_enemy, -1.0, 1.0)
+                enemy_norm = np.clip(self._normalize_pos(self._enemy_measurement), -1.0, 1.0)
+                rel = self._enemy_measurement - self._defender_pos
+                defender_to_enemy = np.clip(
+                    np.array([rel[0] / L, rel[1] / L, rel[2] / H], dtype=np.float32),
+                    -1.0, 1.0,
+                )
             else:
-                enemy_norm = np.array([0.0, 0.0])
-                defender_to_enemy = np.array([0.0, 0.0])
+                enemy_norm = np.zeros(3, dtype=np.float32)
+                defender_to_enemy = np.zeros(3, dtype=np.float32)
             
             return np.concatenate([
                 soldier_norm, 

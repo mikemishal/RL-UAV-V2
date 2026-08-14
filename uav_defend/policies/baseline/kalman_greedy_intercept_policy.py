@@ -88,20 +88,20 @@ class KalmanGreedyInterceptPolicy:
         This is the main policy interface compatible with SoldierEnv.
 
         Args:
-            obs: Environment observation array of shape (9,).
-                 Format: [soldier_x, soldier_y, defender_x, defender_y,
-                          detected_flag, e_hat_x, e_hat_y, v_hat_x, v_hat_y]
+            obs: Environment observation array of shape (13,).
+                 Format: [soldier(3), defender(3), detected_flag,
+                          e_hat(3), v_hat(3)]
                  All values normalized to [-1, 1]. Not used directly; raw
                  positions are read from info for clarity and precision.
             info: Environment info dict containing:
-                 - 'defender_pos': Unnormalized defender position (np.ndarray)
+                 - 'defender_pos': Unnormalized defender position (np.ndarray), shape (3,)
                  - 'e_hat': Kalman-filtered enemy position estimate, or None
-                   if the enemy has not been detected yet (np.ndarray | None)
-                 - 'soldier_pos': Unnormalized soldier position (np.ndarray)
+                   if the enemy has not been detected yet (np.ndarray | None), shape (3,)
+                 - 'soldier_pos': Unnormalized soldier position (np.ndarray), shape (3,)
                  - 'enemy_detected': Boolean detection flag
 
         Returns:
-            action: 2D action vector in [-1, 1]^2 representing heading direction.
+            action: 3D action vector in [-1, 1]^3 representing heading direction.
                    The environment normalizes the magnitude; only direction matters.
 
         Policy Logic:
@@ -124,7 +124,7 @@ class KalmanGreedyInterceptPolicy:
             target = np.asarray(soldier_pos, dtype=np.float32)
         else:
             # Degenerate state: no useful target information available
-            return np.array([0.0, 0.0], dtype=np.float32)
+            return np.zeros(3, dtype=np.float32)
 
         # Compute direction vector from defender to target
         defender = np.asarray(defender_pos, dtype=np.float32)
@@ -133,7 +133,7 @@ class KalmanGreedyInterceptPolicy:
 
         if dist < self.eps:
             # Defender is already at target; no movement needed
-            return np.array([0.0, 0.0], dtype=np.float32)
+            return np.zeros(3, dtype=np.float32)
 
         # Return normalized unit vector (environment scales by defender speed)
         return (direction / dist).astype(np.float32)

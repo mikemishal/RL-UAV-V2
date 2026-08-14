@@ -7,7 +7,7 @@ obs, info = env.reset()
 print('=== Initial State ===')
 print(f'Obs shape: {obs.shape}')
 print(f'Obs: {obs}')
-print(f'Detection flag (obs[4]): {obs[4]}')
+print(f'Detection flag (obs[6]): {obs[6]}')
 print(f'Enemy detected (info): {info["enemy_detected"]}')
 print(f'Enemy pos: {info["enemy_pos"]}')
 print(f'Defender-enemy dist: {info["defender_enemy_dist"]:.1f}')
@@ -19,8 +19,8 @@ for step in range(200):
     if info['enemy_detected']:
         print(f'\n=== Detection at step {step+1} ===')
         print(f'Obs: {obs}')
-        print(f'Detection flag (obs[4]): {obs[4]}')
-        print(f'Enemy info now visible in obs[5:9]: {obs[5:9]}')
+        print(f'Detection flag (obs[6]): {obs[6]}')
+        print(f'Enemy info now visible in obs[7:13]: {obs[7:13]}')
         print(f'Defender-enemy dist: {info["defender_enemy_dist"]:.1f}')
         break
     if term:

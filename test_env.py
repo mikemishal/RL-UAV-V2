@@ -19,13 +19,13 @@ print(f"v_d = {env.config.v_d}, v_e = {env.config.v_e} (equal speeds)")
 print("\n=== Running 5 steps with random actions ===")
 total_reward = 0
 for i in range(5):
-    # Sample random action (2D heading)
+    # Sample random action (3D heading)
     action = env.action_space.sample()
     obs, r, term, trunc, info = env.step(action)
     total_reward += r
     dist_es = info['enemy_soldier_dist']
     dist_de = info['defender_enemy_dist']
-    print(f"Step {i+1}: action=[{action[0]:.2f}, {action[1]:.2f}], reward={r:.3f}, e→s={dist_es:.1f}, d→e={dist_de:.1f}")
+    print(f"Step {i+1}: action=[{action[0]:.2f}, {action[1]:.2f}, {action[2]:.2f}], reward={r:.3f}, e→s={dist_es:.1f}, d→e={dist_de:.1f}")
 print(f"Total reward (5 steps): {total_reward:.3f}")
 
 print("\n=== Running full episode with random policy ===")

@@ -16,7 +16,7 @@ for i in range(5):
     # Pursuit action: move toward enemy
     direction = info['enemy_pos'] - info['defender_pos']
     norm = np.linalg.norm(direction)
-    action = direction / norm if norm > 1e-8 else np.array([0.0, 0.0])
+    action = direction / norm if norm > 1e-8 else np.zeros(3, dtype=np.float32)
     
     prev_dist = info['defender_enemy_dist']
     obs, reward, term, trunc, info = env.step(action)

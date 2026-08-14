@@ -7,8 +7,15 @@ from dataclasses import dataclass
 class EnvConfig:
     """Configuration for the UAV Defend environment."""
     
-    # Domain: [-L, L]²
-    L: float = 50.0  # Half-size of the 2D square domain
+    # Domain: 3D engagement volume.
+    #   x, y in [-L, L] (horizontal extent)
+    #   z in [0, max_altitude] (altitude)
+    L: float = 50.0  # Half-size of the horizontal square domain
+    max_altitude: float = 30.0  # H: Upper vertical bound of the engagement volume
+
+    # Enemy spawn altitude range (must lie within [0, max_altitude])
+    enemy_spawn_altitude_min: float = 10.0
+    enemy_spawn_altitude_max: float = 30.0
     
     # Time parameters
     max_steps: int = 2000  # Tmax: Maximum steps before episode ends
@@ -16,6 +23,23 @@ class EnvConfig:
     
     # Numerical stability
     eps: float = 1e-8  # ε: Small value for numerical stability
+
+    def __post_init__(self) -> None:
+        """Validate altitude configuration."""
+        if self.enemy_spawn_altitude_min < 0:
+            raise ValueError(
+                f"enemy_spawn_altitude_min must be >= 0, got {self.enemy_spawn_altitude_min}"
+            )
+        if self.enemy_spawn_altitude_min > self.enemy_spawn_altitude_max:
+            raise ValueError(
+                "enemy_spawn_altitude_min must be <= enemy_spawn_altitude_max, got "
+                f"{self.enemy_spawn_altitude_min} > {self.enemy_spawn_altitude_max}"
+            )
+        if self.enemy_spawn_altitude_max > self.max_altitude:
+            raise ValueError(
+                "enemy_spawn_altitude_max must be <= max_altitude, got "
+                f"{self.enemy_spawn_altitude_max} > {self.max_altitude}"
+            )
     
     # =========================================================================
     # Speed Configuration (realistic but training-friendly defaults)

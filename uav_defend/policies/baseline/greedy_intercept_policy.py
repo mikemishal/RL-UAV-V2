@@ -59,18 +59,19 @@ class GreedyInterceptPolicy:
         This is the main policy interface compatible with the SoldierEnv.
         
         Args:
-            obs: Environment observation array of shape (9,).
-                 Format: [soldier_x, soldier_y, defender_x, defender_y, 
-                         detected_flag, e_hat_x, e_hat_y, v_hat_x, v_hat_y]
+            obs: Environment observation array of shape (13,).
+                 Format: [soldier_x, soldier_y, soldier_z,
+                         defender_x, defender_y, defender_z,
+                         detected_flag, e_hat(3), v_hat(3)]
                  All values normalized to [-1, 1].
             info: Environment info dict containing:
-                 - 'defender_pos': True defender position (unnormalized)
-                 - 'e_hat': Estimated enemy position from Kalman filter (or None)
-                 - 'soldier_pos': True soldier position (unnormalized)
+                 - 'defender_pos': True defender position (unnormalized), shape (3,)
+                 - 'e_hat': Estimated enemy position from Kalman filter (or None), shape (3,)
+                 - 'soldier_pos': True soldier position (unnormalized), shape (3,)
                  - 'enemy_detected': Boolean detection flag
         
         Returns:
-            action: 2D action vector in [-1, 1]² representing heading direction.
+            action: 3D action vector in [-1, 1]³ representing heading direction.
                    Will be normalized by the environment.
         
         Policy Logic:
@@ -91,7 +92,7 @@ class GreedyInterceptPolicy:
             target = np.asarray(soldier_pos, dtype=np.float32)
         else:
             # Fallback: no movement
-            return np.array([0.0, 0.0], dtype=np.float32)
+            return np.zeros(3, dtype=np.float32)
         
         # Compute direction from defender to target
         defender = np.asarray(defender_pos, dtype=np.float32)
@@ -100,7 +101,7 @@ class GreedyInterceptPolicy:
         
         if dist < self.eps:
             # Already at target, no movement needed
-            return np.array([0.0, 0.0], dtype=np.float32)
+            return np.zeros(3, dtype=np.float32)
         
         # Normalize to unit vector
         action = direction / dist
