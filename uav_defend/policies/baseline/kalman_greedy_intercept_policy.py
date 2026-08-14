@@ -88,9 +88,9 @@ class KalmanGreedyInterceptPolicy:
         This is the main policy interface compatible with SoldierEnv.
 
         Args:
-            obs: Environment observation array of shape (13,).
-                 Format: [soldier(3), defender(3), detected_flag,
-                          e_hat(3), v_hat(3)]
+            obs: Environment observation array of shape (16,).
+                 Format: [soldier(3), defender(3), defender_vel(3),
+                          detected_flag, e_hat(3), v_hat(3)]
                  All values normalized to [-1, 1]. Not used directly; raw
                  positions are read from info for clarity and precision.
             info: Environment info dict containing:

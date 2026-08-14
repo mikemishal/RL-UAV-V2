@@ -59,9 +59,10 @@ class GreedyInterceptPolicy:
         This is the main policy interface compatible with the SoldierEnv.
         
         Args:
-            obs: Environment observation array of shape (13,).
+            obs: Environment observation array of shape (16,).
                  Format: [soldier_x, soldier_y, soldier_z,
                          defender_x, defender_y, defender_z,
+                         defender_vx, defender_vy, defender_vz,
                          detected_flag, e_hat(3), v_hat(3)]
                  All values normalized to [-1, 1].
             info: Environment info dict containing:

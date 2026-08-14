@@ -23,23 +23,6 @@ class EnvConfig:
     
     # Numerical stability
     eps: float = 1e-8  # ε: Small value for numerical stability
-
-    def __post_init__(self) -> None:
-        """Validate altitude configuration."""
-        if self.enemy_spawn_altitude_min < 0:
-            raise ValueError(
-                f"enemy_spawn_altitude_min must be >= 0, got {self.enemy_spawn_altitude_min}"
-            )
-        if self.enemy_spawn_altitude_min > self.enemy_spawn_altitude_max:
-            raise ValueError(
-                "enemy_spawn_altitude_min must be <= enemy_spawn_altitude_max, got "
-                f"{self.enemy_spawn_altitude_min} > {self.enemy_spawn_altitude_max}"
-            )
-        if self.enemy_spawn_altitude_max > self.max_altitude:
-            raise ValueError(
-                "enemy_spawn_altitude_max must be <= max_altitude, got "
-                f"{self.enemy_spawn_altitude_max} > {self.max_altitude}"
-            )
     
     # =========================================================================
     # Speed Configuration (realistic but training-friendly defaults)
@@ -60,6 +43,29 @@ class EnvConfig:
     
     # Defender drone parameters
     v_d: float = 18.0  # Defender speed (faster than enemy, makes interception feasible for RL training)
+    
+    # =========================================================================
+    # Constrained 3D Point-Mass Dynamics
+    # - These are PROVISIONAL SIMULATION DEFAULTS, not validated hardware specs.
+    # - v_d / v_e (above) are the maximum total speeds for defender / enemy.
+    # - Each vehicle maintains a persistent 3D velocity that approaches a
+    #   commanded desired velocity subject to: max acceleration, max
+    #   horizontal turn rate, and max climb/descent rate (vertical speed).
+    # - This is a 3D constrained point-mass model, NOT six-DOF or
+    #   aerodynamic flight dynamics.
+    # =========================================================================
+    
+    # Defender dynamics
+    defender_max_accel: float = 8.0            # m/s^2
+    defender_max_turn_rate_deg: float = 90.0   # deg/s (horizontal heading-rate limit)
+    defender_max_climb_rate: float = 6.0       # m/s
+    defender_max_descent_rate: float = 6.0     # m/s
+    
+    # Hostile-UAV dynamics
+    enemy_max_accel: float = 6.0                # m/s^2
+    enemy_max_turn_rate_deg: float = 75.0       # deg/s (horizontal heading-rate limit)
+    enemy_max_climb_rate: float = 5.0           # m/s
+    enemy_max_descent_rate: float = 5.0         # m/s
     
     # RL reward shaping parameters
     reward_intercept: float = 100.0  # Reward for intercepting enemy (WIN)
@@ -95,3 +101,59 @@ class EnvConfig:
     process_var: float = 1.0           # Process noise variance (higher = trust measurements more)
     measurement_var: float = 0.5       # Enemy position measurement noise variance (per axis)
     lead_time: float = 0.0             # Prediction lead time for extrapolating enemy position (seconds)
+
+    def __post_init__(self) -> None:
+        """Validate altitude and dynamics configuration."""
+        if self.enemy_spawn_altitude_min < 0:
+            raise ValueError(
+                f"enemy_spawn_altitude_min must be >= 0, got {self.enemy_spawn_altitude_min}"
+            )
+        if self.enemy_spawn_altitude_min > self.enemy_spawn_altitude_max:
+            raise ValueError(
+                "enemy_spawn_altitude_min must be <= enemy_spawn_altitude_max, got "
+                f"{self.enemy_spawn_altitude_min} > {self.enemy_spawn_altitude_max}"
+            )
+        if self.enemy_spawn_altitude_max > self.max_altitude:
+            raise ValueError(
+                "enemy_spawn_altitude_max must be <= max_altitude, got "
+                f"{self.enemy_spawn_altitude_max} > {self.max_altitude}"
+            )
+
+        if self.v_d <= 0:
+            raise ValueError(f"v_d must be > 0, got {self.v_d}")
+        if self.v_e <= 0:
+            raise ValueError(f"v_e must be > 0, got {self.v_e}")
+
+        if self.defender_max_accel <= 0:
+            raise ValueError(
+                f"defender_max_accel must be > 0, got {self.defender_max_accel}"
+            )
+        if self.enemy_max_accel <= 0:
+            raise ValueError(f"enemy_max_accel must be > 0, got {self.enemy_max_accel}")
+
+        if not (0 < self.defender_max_turn_rate_deg <= 360):
+            raise ValueError(
+                "defender_max_turn_rate_deg must be in (0, 360], got "
+                f"{self.defender_max_turn_rate_deg}"
+            )
+        if not (0 < self.enemy_max_turn_rate_deg <= 360):
+            raise ValueError(
+                f"enemy_max_turn_rate_deg must be in (0, 360], got {self.enemy_max_turn_rate_deg}"
+            )
+
+        if self.defender_max_climb_rate <= 0:
+            raise ValueError(
+                f"defender_max_climb_rate must be > 0, got {self.defender_max_climb_rate}"
+            )
+        if self.defender_max_descent_rate <= 0:
+            raise ValueError(
+                f"defender_max_descent_rate must be > 0, got {self.defender_max_descent_rate}"
+            )
+        if self.enemy_max_climb_rate <= 0:
+            raise ValueError(
+                f"enemy_max_climb_rate must be > 0, got {self.enemy_max_climb_rate}"
+            )
+        if self.enemy_max_descent_rate <= 0:
+            raise ValueError(
+                f"enemy_max_descent_rate must be > 0, got {self.enemy_max_descent_rate}"
+            )

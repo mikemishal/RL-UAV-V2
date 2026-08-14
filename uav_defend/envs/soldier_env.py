@@ -29,9 +29,13 @@ class SoldierEnv(gym.Env):
     A three-dimensional constrained point-mass engagement environment for RL
     training with partial observability.
 
-    NOTE: This is a 3D KINEMATIC simulator. Entities move instantaneously in
-    a chosen direction at a fixed speed (no acceleration, inertia, turn-rate,
-    or climb-rate constraints). Those dynamics are introduced in later tasks.
+    NOTE: This is a 3D constrained point-mass UAV dynamics simulator. Both
+    aircraft (defender and hostile UAV) maintain a persistent 3D velocity
+    that approaches a controller/guidance-commanded desired velocity subject
+    to bounded acceleration, a bounded horizontal turn rate, a maximum total
+    speed, and bounded climb/descent rates. This is NOT six-DOF or
+    aerodynamic flight dynamics, and the parameter defaults are provisional
+    simulation values rather than validated hardware specifications.
     
     ============================================================================
     UNIFIED ENVIRONMENT FOR BASELINE AND RL
@@ -66,9 +70,13 @@ class SoldierEnv(gym.Env):
     Entities:
         - Soldier (s ∈ ℝ³): Planar Gaussian random walk (uncontrolled); always
           remains a ground entity with s_z = 0 at all times.
-        - Defender (d ∈ ℝ³): Controlled by external policy via 3D action
-        - Enemy (e ∈ ℝ³): Weaving pursuit toward soldier (uncontrolled);
-          naturally descends toward the ground target while pursuing
+        - Defender (d ∈ ℝ³): Persistent 3D velocity that tracks a
+          controller-commanded desired velocity subject to dynamic limits
+          (acceleration, turn rate, climb/descent rate, max speed).
+        - Enemy (e ∈ ℝ³): Persistent 3D velocity that tracks a weaving
+          pursuit-commanded desired velocity, subject to the same class of
+          dynamic limits; naturally descends toward the ground target while
+          pursuing.
     
     Partial Observability with Shared Sensor Noise:
         - Before detection: Enemy state is MASKED (zeros)
@@ -79,12 +87,14 @@ class SoldierEnv(gym.Env):
         - Policies never receive the true enemy state through observation channels
         - Defender motion is controlled entirely by external policy (action-driven)
     
-    Observation Space (spaces.Box, shape=13, dtype=float32):
+    Observation Space (spaces.Box, shape=16, dtype=float32):
         All values normalized to [-1, 1]:
             [soldier_x, soldier_y, soldier_z,
              defender_x, defender_y, defender_z,
+             defender_vx, defender_vy, defender_vz,
              detected_flag,
              enemy_info_1..3, enemy_info_4..6]
+        - defender velocity is normalized by v_d (component-wise)
         - detected_flag: 0.0 (not detected) or 1.0 (detected)
                 - If use_kalman_tracking=True:
                     enemy_info_1..3 = e_hat (Kalman estimated position),
@@ -95,11 +105,13 @@ class SoldierEnv(gym.Env):
         - All enemy-related values are 0.0 before detection
     
     Action Space (spaces.Box, shape=3, dtype=float32):
-        3D continuous action vector in [-1, 1]³.
-        - Normalized to unit vector if norm > eps
-        - Defender displacement = v_d * dt * normalized_action
-        - If action norm < eps, defender does not move
-        - Action controls defender heading at ALL times
+        3D continuous action vector in [-1, 1]³, interpreted as a DESIRED
+        velocity direction (not an instantaneous displacement command):
+        - Normalized to unit vector if norm > eps -> desired_velocity = v_d * direction
+        - If action norm <= eps, desired_velocity = [0,0,0] (command to stop)
+        - The environment's constrained-velocity dynamics determine how
+          quickly the defender's actual persistent velocity can turn,
+          accelerate, or decelerate toward that desired velocity.
     
     Reward (dense shaping for RL):
         +100 for intercepting enemy safely (WIN)
@@ -160,8 +172,12 @@ class SoldierEnv(gym.Env):
         # =====================================================================
         # OBSERVATION SPACE (fixed-size, normalized for RL)
         # =====================================================================
-        # Shape: (13,), all values in [-1, 1]
-        # Layout: [soldier(3), defender(3), detected_flag(1), enemy_info(6)]
+        # Shape: (16,), all values in [-1, 1]
+        # Layout: [soldier(3), defender(3), defender_vel(3), detected_flag(1), enemy_info(6)]
+        #
+        # defender_vel is normalized by v_d (component-wise); since total
+        # defender speed is dynamically constrained to <= v_d, each component
+        # remains within [-1, 1].
         #
         # If config.use_kalman_tracking=True (RL-Kalman track):
         #   - e_hat: Kalman estimated enemy position (zeros before detection)
@@ -175,7 +191,7 @@ class SoldierEnv(gym.Env):
         self.observation_space = spaces.Box(
             low=-1.0,
             high=1.0,
-            shape=(13,),
+            shape=(16,),
             dtype=np.float32,
         )
         
@@ -183,13 +199,16 @@ class SoldierEnv(gym.Env):
         self._prev_defender_enemy_dist: float = 0.0
         
         # =====================================================================
-        # ACTION SPACE (3D continuous heading vector)
+        # ACTION SPACE (3D desired-velocity direction)
         # =====================================================================
         # Shape: (3,), values in [-1, 1]
-        # Interpretation: 3D direction vector for defender movement
-        #   - Normalized to unit vector if norm > eps
-        #   - Defender moves: displacement = v_d * dt * normalized_action
-        #   - If norm < eps, defender stays stationary
+        # Interpretation: 3D DESIRED velocity direction for the defender.
+        #   - Normalized to unit vector if norm > eps -> desired_velocity = v_d * direction
+        #   - If norm <= eps, desired_velocity = [0,0,0] (command to stop)
+        #   - The defender's actual persistent velocity approaches this
+        #     desired velocity subject to bounded acceleration, bounded
+        #     horizontal turn rate, and bounded climb/descent rate. The
+        #     action does NOT instantaneously set the defender's velocity.
         #
         # This is the same interface for both:
         #   - Scripted policies: policy.act(obs, info) -> action
@@ -205,6 +224,10 @@ class SoldierEnv(gym.Env):
         self._soldier_pos: np.ndarray | None = None
         self._defender_pos: np.ndarray | None = None
         self._enemy_pos: np.ndarray | None = None
+        self._defender_vel: np.ndarray | None = None  # Persistent 3D velocity [vx,vy,vz], m/s
+        self._enemy_vel: np.ndarray | None = None      # Persistent 3D velocity [vx,vy,vz], m/s
+        self._defender_dynamics_info: dict = {}  # Per-step dynamics diagnostics (see _advance_velocity)
+        self._enemy_dynamics_info: dict = {}
         self._weave_bias: float = 0.0  # AR(1) lateral weave bias 'a'
         self._step_count: int = 0
         self._enemy_detected: bool = False  # Tracking state: enemy detected?
@@ -238,7 +261,7 @@ class SoldierEnv(gym.Env):
             options: Additional options (unused).
         
         Returns:
-            observation: Shape (13,) normalized state vector.
+            observation: Shape (16,) normalized state vector.
             info: Additional information dict.
         """
         super().reset(seed=seed)
@@ -250,8 +273,44 @@ class SoldierEnv(gym.Env):
         # Initialize defender co-located with soldier: d0 = s0 = [x, y, 0]
         self._defender_pos = self._soldier_pos.copy()
         
+        # Defender begins stationary: it must accelerate from rest rather
+        # than instantly travel at v_d.
+        self._defender_vel = np.zeros(3, dtype=np.float32)
+        
         # Initialize enemy at random position on boundary edge
         self._enemy_pos = self._spawn_enemy_at_edge()
+        
+        # The hostile UAV represents an aircraft already entering the
+        # engagement volume: initialize its velocity approximately toward
+        # the soldier at its maximum speed, rather than from rest, to avoid
+        # an artificial launch-from-rest transient.
+        pursuit_dir = self._soldier_pos - self._enemy_pos
+        pursuit_norm = np.linalg.norm(pursuit_dir)
+        if pursuit_norm > self.config.eps:
+            pursuit_dir = pursuit_dir / pursuit_norm
+        else:
+            pursuit_dir = np.array([1.0, 0.0, 0.0])  # Safe fallback (numerically degenerate case)
+        initial_enemy_vel = self.config.v_e * pursuit_dir
+        # Respect the vertical-rate invariant maintained everywhere else:
+        # clip the initial vertical component to [-max_descent, max_climb]
+        # (this can only reduce the total initial speed slightly below v_e,
+        # never increase it, so the max-speed bound also remains satisfied).
+        initial_enemy_vel[2] = np.clip(
+            initial_enemy_vel[2],
+            -self.config.enemy_max_descent_rate,
+            self.config.enemy_max_climb_rate,
+        )
+        self._enemy_vel = initial_enemy_vel.astype(np.float32)
+        
+        # Reset per-step dynamics diagnostics (see _advance_velocity)
+        self._defender_dynamics_info = {
+            "accel_used": 0.0,
+            "turn_rate_used_deg": 0.0,
+            "accel_saturated": False,
+            "turn_saturated": False,
+            "climb_saturated": False,
+        }
+        self._enemy_dynamics_info = dict(self._defender_dynamics_info)
         
         # Initialize weave bias to zero: a0 = 0
         self._weave_bias = 0.0
@@ -320,15 +379,17 @@ class SoldierEnv(gym.Env):
         updates all other entities (soldier, enemy) and computes reward.
         
         Args:
-            action: 3D continuous action vector in [-1, 1]³, shape=(3,).
-                   This can come from:
+            action: 3D continuous action vector in [-1, 1]³, shape=(3,),
+                   interpreted as a DESIRED velocity direction (see class
+                   docstring). This can come from:
                      - Scripted policy: policy.act(obs, info) -> np.ndarray
                      - RL algorithm: model.predict(obs) -> (action, state)
                    The action is normalized to a unit vector if norm > eps.
-                   If norm < eps, defender does not move.
+                   If norm <= eps, the desired velocity is [0,0,0] (a command
+                   to decelerate toward a stop, not an instantaneous stop).
         
         Returns:
-            observation: Shape (13,) normalized state vector.
+            observation: Shape (16,) normalized state vector.
             reward: Scalar reward (dense shaping for RL training).
             terminated: True if episode ended (win/loss/timeout).
             truncated: Always False (no external truncation).
@@ -443,15 +504,225 @@ class SoldierEnv(gym.Env):
             outcome, enemy_soldier_dist, defender_enemy_dist
         )
     
-    def _move_defender(self, action: np.ndarray) -> None:
+    def _advance_velocity(
+        self,
+        current_velocity: np.ndarray,
+        desired_velocity: np.ndarray,
+        max_speed: float,
+        max_accel: float,
+        max_turn_rate_rad: float,
+        max_climb_rate: float,
+        max_descent_rate: float,
+    ) -> tuple[np.ndarray, dict]:
         """
-        Move the defender drone based on externally provided action.
+        Advance a persistent 3D point-mass velocity toward a desired velocity,
+        subject to a maximum horizontal turn rate, maximum acceleration,
+        maximum total speed, and maximum climb/descent rate.
+
+        This is the single reusable constrained-velocity update shared by
+        both the defender and the hostile UAV (a 3D constrained point-mass
+        dynamics model — NOT six-DOF or aerodynamic flight dynamics).
+
+        Order of operations:
+          1. Vertical-rate command limiting: clip desired_velocity[2] into
+             [-max_descent_rate, max_climb_rate].
+          2. Horizontal turn-rate limiting: rotate the current horizontal
+             heading toward the desired horizontal heading by at most
+             max_turn_rate_rad * dt (shortest signed angular path, wrapped
+             to [-pi, pi]), adopting the desired horizontal speed magnitude.
+             Special cases (documented explicitly, not merely defaulted):
+               - If current horizontal speed <= eps, the previous heading is
+                 undefined; heading initializes directly toward the desired
+                 heading with NO rate limit applied (there is nothing to
+                 rate-limit against). Acceleration limiting (step 3) still
+                 governs how quickly speed itself can rise.
+               - If desired horizontal speed <= eps (e.g. a "stop" command),
+                 heading has no defined target; the current heading is held
+                 while horizontal speed is commanded toward zero.
+             The result is the "dynamically permissible target velocity".
+          3. Acceleration limiting: clip the change from current_velocity to
+             the target velocity to at most max_accel * dt in magnitude,
+             preserving the direction of the change. Because this is
+             equivalent to next = current + t*(target - current) for some
+             t in [0, 1], the result is a convex combination of current and
+             target.
+          4. Total-speed / vertical-rate safety enforcement: since both
+             current_velocity and the target velocity already satisfy the
+             max_speed ball and the climb/descent bounds (both are convex
+             constraints), and step 3 produces a convex combination of the
+             two, the result satisfies both bounds automatically. A
+             defensive clip is applied regardless, to guard against
+             floating-point overshoot (never used to silently paper over a
+             design error).
+
+        Args:
+            current_velocity: Current persistent velocity [vx, vy, vz], shape (3,).
+            desired_velocity: Controller/guidance-commanded desired velocity
+                [vx, vy, vz], shape (3,); ||desired_velocity|| is expected to
+                be <= max_speed (e.g. max_speed * unit_direction).
+            max_speed: Maximum total speed (m/s).
+            max_accel: Maximum acceleration magnitude (m/s^2).
+            max_turn_rate_rad: Maximum horizontal heading-rate magnitude (rad/s).
+            max_climb_rate: Maximum upward vertical speed (m/s), positive.
+            max_descent_rate: Maximum downward vertical speed magnitude (m/s), positive.
+
+        Returns:
+            (next_velocity, diagnostics):
+                next_velocity: Constrained velocity, shape (3,), float32.
+                diagnostics: dict with keys "accel_used" (m/s^2, actually
+                    applied this step), "turn_rate_used_deg" (deg/s, actually
+                    applied this step), "accel_saturated" (bool),
+                    "turn_saturated" (bool), "climb_saturated" (bool, True if
+                    the vertical-rate command limit in step 1 was active).
+        """
+        dt = self.config.dt
+        eps = self.config.eps
+        
+        current_velocity = np.asarray(current_velocity, dtype=np.float64)
+        desired_velocity = np.asarray(desired_velocity, dtype=np.float64)
+        
+        # 1. Vertical-rate command limiting
+        desired_vz = desired_velocity[2]
+        desired_vz_clipped = float(np.clip(desired_vz, -max_descent_rate, max_climb_rate))
+        climb_saturated = abs(desired_vz_clipped - desired_vz) > 1e-9
+        
+        # 2. Horizontal turn-rate limiting
+        cur_h = current_velocity[0:2]
+        des_h = desired_velocity[0:2]
+        ch = float(np.linalg.norm(cur_h))
+        dh = float(np.linalg.norm(des_h))
+        
+        turn_rate_used_rad = 0.0
+        turn_saturated = False
+        
+        if dh <= eps:
+            # Desired horizontal command is (near) zero: hold current
+            # heading, command zero horizontal speed (bounded braking).
+            target_heading = np.arctan2(cur_h[1], cur_h[0]) if ch > eps else 0.0
+            target_h_mag = 0.0
+        elif ch <= eps:
+            # Current horizontal velocity undefined (at/near rest):
+            # initialize heading directly toward the desired heading; no
+            # rate limit applies to an undefined previous heading.
+            target_heading = np.arctan2(des_h[1], des_h[0])
+            target_h_mag = dh
+        else:
+            psi_current = np.arctan2(cur_h[1], cur_h[0])
+            psi_desired = np.arctan2(des_h[1], des_h[0])
+            delta_psi = psi_desired - psi_current
+            delta_psi = (delta_psi + np.pi) % (2 * np.pi) - np.pi  # wrap to [-pi, pi]
+            max_delta = max_turn_rate_rad * dt
+            if abs(delta_psi) > max_delta:
+                delta_psi = np.sign(delta_psi) * max_delta
+                turn_saturated = True
+            target_heading = psi_current + delta_psi
+            target_h_mag = dh
+            turn_rate_used_rad = abs(delta_psi) / dt if dt > 0 else 0.0
+        
+        target_velocity = np.array([
+            target_h_mag * np.cos(target_heading),
+            target_h_mag * np.sin(target_heading),
+            desired_vz_clipped,
+        ])
+        
+        # 3. Acceleration limiting (bounded convex-combination step toward target)
+        delta_v = target_velocity - current_velocity
+        delta_v_norm = float(np.linalg.norm(delta_v))
+        max_delta_v = max_accel * dt
+        accel_saturated = delta_v_norm > max_delta_v
+        if accel_saturated and delta_v_norm > eps:
+            delta_v = delta_v / delta_v_norm * max_delta_v
+        next_velocity = current_velocity + delta_v
+        accel_used = float(np.linalg.norm(delta_v)) / dt if dt > 0 else 0.0
+        
+        # 4. Total-speed / vertical-rate safety enforcement (defensive clip)
+        speed = float(np.linalg.norm(next_velocity))
+        if speed > max_speed and speed > eps:
+            next_velocity = next_velocity / speed * max_speed
+        next_velocity[2] = np.clip(next_velocity[2], -max_descent_rate, max_climb_rate)
+        
+        diagnostics = {
+            "accel_used": accel_used,
+            "turn_rate_used_deg": float(np.degrees(turn_rate_used_rad)),
+            "accel_saturated": bool(accel_saturated),
+            "turn_saturated": bool(turn_saturated),
+            "climb_saturated": bool(climb_saturated),
+        }
+        
+        return next_velocity.astype(np.float32), diagnostics
+    
+    def _apply_boundary(self, pos: np.ndarray, vel: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Clip position to the 3D engagement volume (x, y \u2208 [-L, L], z \u2208 [0, H])
+        and zero ONLY the outward-normal velocity component at any boundary
+        the position has reached. Tangential velocity components are
+        preserved unchanged (no bounce/reflection for persistent-velocity
+        vehicles).
+        
+        For example, at z = 0 with vz < 0 (descending into the ground),
+        vz is set to 0 while vx, vy are untouched. This prevents outward
+        velocity from continuing to accumulate against a boundary while the
+        vehicle is resting against it.
         
         Args:
-            action: 3D continuous action vector in [-1, 1]³.
-                   Normalized to unit vector if norm > eps.
-                   Defender displacement = v_d * dt * normalized_action.
-                   If action norm < eps, defender does not move.
+            pos: Position array of shape (3,).
+            vel: Persistent velocity array of shape (3,).
+        
+        Returns:
+            (clipped_pos, clipped_vel), each of shape (3,).
+        """
+        L = self.config.L
+        H = self.config.max_altitude
+        pos = pos.copy()
+        vel = vel.copy()
+        
+        if pos[0] > L:
+            pos[0] = L
+            if vel[0] > 0:
+                vel[0] = 0.0
+        elif pos[0] < -L:
+            pos[0] = -L
+            if vel[0] < 0:
+                vel[0] = 0.0
+        
+        if pos[1] > L:
+            pos[1] = L
+            if vel[1] > 0:
+                vel[1] = 0.0
+        elif pos[1] < -L:
+            pos[1] = -L
+            if vel[1] < 0:
+                vel[1] = 0.0
+        
+        if pos[2] > H:
+            pos[2] = H
+            if vel[2] > 0:
+                vel[2] = 0.0
+        elif pos[2] < 0.0:
+            pos[2] = 0.0
+            if vel[2] < 0:
+                vel[2] = 0.0
+        
+        return pos, vel
+    
+    def _move_defender(self, action: np.ndarray) -> None:
+        """
+        Move the defender drone using constrained 3D point-mass dynamics.
+        
+        Args:
+            action: 3D continuous action vector in [-1, 1]³, interpreted as
+                   a DESIRED velocity direction. Normalized to a unit vector
+                   if norm > eps -> desired_velocity = v_d * direction. If
+                   action norm <= eps, desired_velocity = [0,0,0] (command
+                   to decelerate toward a stop).
+        
+        The defender's persistent velocity (self._defender_vel) approaches
+        this desired velocity subject to defender_max_accel,
+        defender_max_turn_rate_deg, defender_max_climb_rate, and
+        defender_max_descent_rate (see _advance_velocity). Position is then
+        integrated as p_{t+1} = p_t + v_{t+1} * dt, followed by physically
+        consistent boundary handling (_apply_boundary): outward velocity is
+        zeroed only if the position actually reached a boundary.
         
         Note:
             Detection and Kalman tracking are managed independently by
@@ -459,24 +730,31 @@ class SoldierEnv(gym.Env):
         """
         eps = self.config.eps
         
-        # Action-driven defender motion
         action = np.asarray(action, dtype=np.float32)
         action_norm = np.linalg.norm(action)
         
-        # If action is too small, defender doesn't move
-        if action_norm < eps:
-            return
+        if action_norm > eps:
+            desired_direction = action / action_norm
+            desired_velocity = self.config.v_d * desired_direction
+        else:
+            desired_velocity = np.zeros(3, dtype=np.float32)
         
-        # Normalize action to unit vector
-        direction = action / action_norm
+        next_vel, diag = self._advance_velocity(
+            current_velocity=self._defender_vel,
+            desired_velocity=desired_velocity,
+            max_speed=self.config.v_d,
+            max_accel=self.config.defender_max_accel,
+            max_turn_rate_rad=np.radians(self.config.defender_max_turn_rate_deg),
+            max_climb_rate=self.config.defender_max_climb_rate,
+            max_descent_rate=self.config.defender_max_descent_rate,
+        )
+        self._defender_dynamics_info = diag
         
-        # Move defender: displacement = v_d * dt * normalized_action
-        displacement = self.config.v_d * self.config.dt * direction
-        new_pos = self._defender_pos + displacement
+        new_pos = self._defender_pos + next_vel * self.config.dt
+        new_pos, next_vel = self._apply_boundary(new_pos, next_vel)
         
-        # Apply reflecting boundary conditions
-        new_pos = self._reflect_boundary(new_pos)
         self._defender_pos = new_pos.astype(np.float32)
+        self._defender_vel = next_vel.astype(np.float32)
     
     def _update_detection(self) -> None:
         """
@@ -584,9 +862,10 @@ class SoldierEnv(gym.Env):
     
     def _move_enemy(self) -> None:
         """
-        Move the enemy with a stochastic weaving pursuit policy in 3D.
+        Move the enemy with a stochastic weaving pursuit policy in 3D,
+        using constrained point-mass dynamics.
         
-        Weaving pursuit dynamics:
+        Weaving pursuit GUIDANCE (unchanged from the 3D-foundation task):
         1. Compute vector to soldier: r = s - e (full 3D; since the soldier
            is always at z=0, this naturally drives the enemy to descend
            toward the ground target as it pursues)
@@ -599,11 +878,20 @@ class SoldierEnv(gym.Env):
         5. Heading noise: z ~ N(0, I_3) (generalized to 3 dimensions)
         6. Unnormalized direction: u_raw = r_hat + a * lateral + sigma_e * z
         7. Normalize: u = u_raw / (||u_raw|| + eps)
-        8. Move: e_next = e + v_e * dt * u
-        9. Apply reflecting boundary conditions ([-L, L]² × [0, H])
+        
+        DYNAMICS (new in this task): guidance now produces a DESIRED
+        velocity direction, not instantaneous motion. desired_velocity =
+        v_e * u is fed through the same reusable constrained-velocity update
+        used by the defender (_advance_velocity), subject to
+        enemy_max_accel, enemy_max_turn_rate_deg, enemy_max_climb_rate, and
+        enemy_max_descent_rate. Position is then integrated as
+        p_{t+1} = p_t + v_{t+1} * dt, followed by physically consistent
+        boundary handling (_apply_boundary).
         
         Note: vertical weaving is NOT modeled here; altitude change results
-        only from 3D pursuit of the ground-level soldier target.
+        only from 3D pursuit of the ground-level soldier target. Hostile
+        evasion, proportional navigation, and lead pursuit are NOT modeled
+        here either (deferred to a later task).
         """
         eps = self.config.eps
         
@@ -653,14 +941,26 @@ class SoldierEnv(gym.Env):
         else:
             u = r_hat  # Fallback to direct pursuit
         
-        # Move enemy
-        displacement = self.config.v_e * self.config.dt * u
-        new_pos = self._enemy_pos + displacement
+        # Guidance produces a DESIRED velocity; dynamics determine the
+        # actual persistent velocity subject to acceleration/turn/vertical limits.
+        desired_velocity = self.config.v_e * u
         
-        # Apply reflecting boundary conditions
-        new_pos = self._reflect_boundary(new_pos)
+        next_vel, diag = self._advance_velocity(
+            current_velocity=self._enemy_vel,
+            desired_velocity=desired_velocity,
+            max_speed=self.config.v_e,
+            max_accel=self.config.enemy_max_accel,
+            max_turn_rate_rad=np.radians(self.config.enemy_max_turn_rate_deg),
+            max_climb_rate=self.config.enemy_max_climb_rate,
+            max_descent_rate=self.config.enemy_max_descent_rate,
+        )
+        self._enemy_dynamics_info = diag
+        
+        new_pos = self._enemy_pos + next_vel * self.config.dt
+        new_pos, next_vel = self._apply_boundary(new_pos, next_vel)
         
         self._enemy_pos = new_pos.astype(np.float32)
+        self._enemy_vel = next_vel.astype(np.float32)
     
     def _reflect_boundary(self, pos: np.ndarray) -> np.ndarray:
         """
@@ -718,10 +1018,16 @@ class SoldierEnv(gym.Env):
         The observation format depends on config.use_kalman_tracking:
         
         Returns:
-            obs: Array of shape (13,), all values normalized to [-1, 1].
+            obs: Array of shape (16,), all values normalized to [-1, 1].
+            
+            [soldier(3), defender(3), defender_vel(3), detected_flag(1), enemy_info(6)]
+            
+            - defender_vel: defender's persistent 3D velocity normalized by
+              v_d (component-wise); always within [-1, 1] since total
+              defender speed is dynamically constrained to <= v_d.
             
             If config.use_kalman_tracking=True (RL-Kalman track):
-                [soldier(3), defender(3), detected_flag(1), e_hat(3), v_hat(3)]
+                enemy_info = [e_hat(3), v_hat(3)]
                 - e_hat: Kalman estimated enemy position (x,y normalized by L,
                   z normalized by max_altitude)
                 - v_hat: Kalman estimated enemy velocity (normalized by v_e)
@@ -729,7 +1035,7 @@ class SoldierEnv(gym.Env):
                 - Policy acts on ESTIMATED state, not ground truth
                 
             If config.use_kalman_tracking=False (direct RL track):
-                [soldier(3), defender(3), detected_flag(1), meas(3), rel(3)]
+                enemy_info = [meas(3), rel(3)]
                 - meas: noisy enemy position measurement (x,y normalized by L,
                   z normalized by max_altitude)
                 - rel: relative vector from defender to measurement (x,y
@@ -740,10 +1046,18 @@ class SoldierEnv(gym.Env):
         L = self.config.L
         H = self.config.max_altitude
         v_e = self.config.v_e
+        v_d = self.config.v_d
         
         # Normalize positions
         soldier_norm = self._normalize_pos(self._soldier_pos)
         defender_norm = self._normalize_pos(self._defender_pos)
+        
+        # Normalize defender's own persistent velocity by its max speed.
+        # Guard against a misconfigured (non-positive) v_d.
+        if v_d > 0:
+            defender_vel_norm = np.clip(self._defender_vel / v_d, -1.0, 1.0).astype(np.float32)
+        else:
+            defender_vel_norm = np.zeros(3, dtype=np.float32)
         
         # Detection flag
         detected_flag = np.array([1.0 if self._enemy_detected else 0.0])
@@ -761,6 +1075,7 @@ class SoldierEnv(gym.Env):
             return np.concatenate([
                 soldier_norm, 
                 defender_norm,
+                defender_vel_norm,
                 detected_flag,
                 e_hat_norm,
                 v_hat_norm
@@ -781,6 +1096,7 @@ class SoldierEnv(gym.Env):
             return np.concatenate([
                 soldier_norm, 
                 defender_norm,
+                defender_vel_norm,
                 detected_flag,
                 enemy_norm,
                 defender_to_enemy
@@ -795,6 +1111,12 @@ class SoldierEnv(gym.Env):
                     "unsafe_intercept", or "timeout".
             enemy_soldier_dist: Distance between enemy and soldier.
             defender_enemy_dist: Distance between defender and enemy.
+        
+        Dynamics diagnostic fields (units: velocity in m/s, acceleration in
+        m/s^2, turn rate in deg/s) are computed by _advance_velocity() during
+        _move_defender() / _move_enemy() and are NOT part of the RL
+        observation (only defender_vel is observable, per the observation
+        layout above).
         """
         # Check if current state is in unsafe intercept zone
         unsafe_zone = enemy_soldier_dist <= self.config.unsafe_intercept_radius
@@ -810,6 +1132,20 @@ class SoldierEnv(gym.Env):
             "soldier_pos": self._soldier_pos.copy(),
             "defender_pos": self._defender_pos.copy(),
             "enemy_pos": self._enemy_pos.copy(),
+            "defender_vel": self._defender_vel.copy(),  # m/s, shape (3,)
+            "enemy_vel": self._enemy_vel.copy(),        # m/s, shape (3,)
+            "defender_speed": float(np.linalg.norm(self._defender_vel)),  # m/s
+            "enemy_speed": float(np.linalg.norm(self._enemy_vel)),        # m/s
+            "defender_accel": self._defender_dynamics_info["accel_used"],  # m/s^2
+            "enemy_accel": self._enemy_dynamics_info["accel_used"],        # m/s^2
+            "defender_turn_rate": self._defender_dynamics_info["turn_rate_used_deg"],  # deg/s
+            "enemy_turn_rate": self._enemy_dynamics_info["turn_rate_used_deg"],        # deg/s
+            "defender_accel_saturated": self._defender_dynamics_info["accel_saturated"],
+            "enemy_accel_saturated": self._enemy_dynamics_info["accel_saturated"],
+            "defender_turn_saturated": self._defender_dynamics_info["turn_saturated"],
+            "enemy_turn_saturated": self._enemy_dynamics_info["turn_saturated"],
+            "defender_climb_saturated": self._defender_dynamics_info["climb_saturated"],
+            "enemy_climb_saturated": self._enemy_dynamics_info["climb_saturated"],
             "weave_bias": self._weave_bias,
             "enemy_soldier_dist": enemy_soldier_dist,
             "defender_enemy_dist": defender_enemy_dist,

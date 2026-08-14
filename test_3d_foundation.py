@@ -27,7 +27,7 @@ from uav_defend.policies.baseline.random_policy import RandomPolicy
 def test_spaces():
     env = SoldierEnv()
     assert env.action_space.shape == (3,), env.action_space.shape
-    assert env.observation_space.shape == (13,), env.observation_space.shape
+    assert env.observation_space.shape == (16,), env.observation_space.shape
     obs, info = env.reset(seed=1)
     assert env.observation_space.contains(obs), obs
 
@@ -79,24 +79,38 @@ def test_reproducibility():
 
 
 # ---------------------------------------------------------------------------
-# E. Defender vertical movement
+# E. Defender vertical movement (bounded acceleration, NOT instantaneous)
 # ---------------------------------------------------------------------------
 def test_defender_vertical_movement():
     config = EnvConfig()
     env = SoldierEnv(config=config)
     env.reset(seed=5)
-    # Room above the defender: max_altitude=30, place defender at z=5
+    # Room above the defender: max_altitude=30, place defender at z=5, at rest.
     env._defender_pos = np.array([0.0, 0.0, 5.0], dtype=np.float32)
-    before = env._defender_pos.copy()
+    env._defender_vel = np.zeros(3, dtype=np.float32)
+    before_pos = env._defender_pos.copy()
     action = np.array([0.0, 0.0, 1.0], dtype=np.float32)
     env._move_defender(action)
-    after = env._defender_pos
+    after_pos = env._defender_pos
+    after_vel = env._defender_vel
 
-    expected_dz = config.v_d * config.dt
-    assert after[2] > before[2]
-    assert abs(after[2] - (before[2] + expected_dz)) < 1e-4, (after[2], before[2], expected_dz)
-    assert abs(after[0] - before[0]) < 1e-6
-    assert abs(after[1] - before[1]) < 1e-6
+    # The vehicle now has persistent, acceleration-limited velocity: a single
+    # upward command from rest can NOT produce the old instantaneous v_d*dt
+    # displacement. The velocity change this step must respect max_accel*dt.
+    max_dv = config.defender_max_accel * config.dt
+    assert np.linalg.norm(after_vel) <= max_dv + 1e-6, (after_vel, max_dv)
+    assert after_vel[2] > 0.0, after_vel
+    assert abs(after_vel[0]) < 1e-6 and abs(after_vel[1]) < 1e-6
+
+    # Position integration: p_{t+1} = p_t + v_{t+1} * dt
+    expected_pos = before_pos + after_vel * config.dt
+    assert np.allclose(after_pos, expected_pos, atol=1e-5), (after_pos, expected_pos)
+
+    # Strictly less than the OLD (pre-dynamics-task) instantaneous displacement
+    old_instantaneous_dz = config.v_d * config.dt
+    assert (after_pos[2] - before_pos[2]) < old_instantaneous_dz
+    assert abs(after_pos[0] - before_pos[0]) < 1e-6
+    assert abs(after_pos[1] - before_pos[1]) < 1e-6
 
 
 # ---------------------------------------------------------------------------
@@ -211,11 +225,11 @@ def test_bounds():
             assert -1e-3 <= p[2] <= config.max_altitude + 1e-3, (key, p)
         if term:
             obs, info = env.reset()
-    # Documented decision: the hostile UAV is bounded by the SAME reflecting
-    # boundary as the defender and soldier (x,y in [-L,L], z in [0,max_altitude]).
-    # This matches the pre-existing (2D) design where the enemy already
-    # reflected off the horizontal walls; the vertical reflecting bound is a
-    # direct 3D generalization of that same rule, not a new behavior.
+    # Documented decision: the hostile UAV and defender use the SAME
+    # physically-consistent boundary handling (_apply_boundary): position is
+    # clipped to the boundary and only the outward-normal velocity component
+    # is zeroed (no bounce/reflection), introduced by the constrained-dynamics
+    # task. This still guarantees x,y in [-L,L] and z in [0,max_altitude].
 
 
 # ---------------------------------------------------------------------------

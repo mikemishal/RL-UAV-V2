@@ -185,7 +185,7 @@ class PPOPolicyWrapper:
         pipeline.
         
         Args:
-            obs: Environment observation array, shape (13,) for SoldierEnv.
+            obs: Environment observation array, shape (16,) for SoldierEnv.
                  Expected to be normalized to [-1, 1].
             info: Environment info dictionary. Not used by PPO but included
                   for interface compatibility with baseline policies.

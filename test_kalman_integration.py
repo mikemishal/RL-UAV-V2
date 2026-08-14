@@ -8,7 +8,7 @@ obs, info = env.reset(seed=42)
 print("Observation space:", env.observation_space)
 print("Initial obs shape:", obs.shape)
 print("Initial obs:", obs)
-print("  [soldier(3), defender(3), detected(1), e_hat(3), v_hat(3)]")
+print("  [soldier(3), defender(3), defender_vel(3), detected(1), e_hat(3), v_hat(3)]")
 print("Initial detection:", info["detected"])
 
 # Run until detected
@@ -28,12 +28,12 @@ for i in range(200):
         print(f"  v_hat (from info): {info['v_hat']}")
         print(f"  tracking_error: {info['tracking_error']:.3f}")
         print(f"  true enemy_pos (NOT in obs): {info['enemy_pos']}")
-        # Verify obs[7:10] matches e_hat (x,y / L, z / max_altitude)
+        # Verify obs[10:13] matches e_hat (x,y / L, z / max_altitude)
         L = env.config.L
         H = env.config.max_altitude
         v_e = env.config.v_e
-        e_hat_in_obs = obs[7:10] * np.array([L, L, H])
-        v_hat_in_obs = obs[10:13] * v_e
+        e_hat_in_obs = obs[10:13] * np.array([L, L, H])
+        v_hat_in_obs = obs[13:16] * v_e
         print(f"  e_hat from obs (denormalized): {e_hat_in_obs}")
         print(f"  v_hat from obs (denormalized): {v_hat_in_obs}")
     if d:
