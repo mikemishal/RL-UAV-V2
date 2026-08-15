@@ -20,6 +20,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 import numpy as np
 
 from uav_defend.envs import SoldierEnv
+from uav_defend.config import EnvConfig
 from uav_defend.policies import GreedyInterceptPolicy
 
 
@@ -34,7 +35,7 @@ def run_episode(seed: int = 42, verbose: bool = True) -> dict:
     Returns:
         Dictionary containing trajectory data and episode summary.
     """
-    env = SoldierEnv()
+    env = SoldierEnv(config=EnvConfig(use_kalman_tracking=False))
     policy = GreedyInterceptPolicy()
     
     # Initialize trajectory storage

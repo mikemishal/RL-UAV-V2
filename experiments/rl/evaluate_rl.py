@@ -40,6 +40,7 @@ from scipy import stats
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from uav_defend.envs import SoldierEnv
+from uav_defend.config import EnvConfig
 from uav_defend.policies.rl import PPOPolicyWrapper
 
 from experiments.eval_utils import (
@@ -271,8 +272,10 @@ def evaluate_rl(
         mode = "deterministic" if deterministic else "stochastic"
         print(f"Mode: {mode}")
     
-    # Create environment factory
-    env_factory = lambda: SoldierEnv()
+    # Create environment factory. Explicit Direct/measurement-track
+    # configuration (this script evaluates PPOPolicyWrapper, the Direct
+    # track's PPO model -- never rely on the environment's default).
+    env_factory = lambda: SoldierEnv(config=EnvConfig(use_kalman_tracking=False))
     
     # Generate seeds
     seeds = list(range(seed_offset, seed_offset + n_episodes))

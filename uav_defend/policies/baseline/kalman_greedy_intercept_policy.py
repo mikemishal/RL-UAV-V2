@@ -9,9 +9,10 @@ filtered enemy position estimate (e_hat) provided in the info dictionary.
 Purpose:
     This baseline isolates the effect of state estimation without reinforcement
     learning. By comparing this policy against:
-      - GreedyInterceptPolicy  (greedy on true state, no estimation)
-      - PPO Direct RL          (learned policy on true state)
-      - PPO RL-Kalman          (learned policy on Kalman state)
+      - GreedyInterceptPolicy  (greedy pursuit of the raw noisy measurement,
+        i.e. the Direct/measurement estimator, never ground truth)
+      - PPO Direct RL          (learned policy on the Direct/measurement estimator)
+      - PPO RL-Kalman          (learned policy on the Kalman estimator)
     we can independently measure the value of Kalman filtering and the value
     of learned control, separated from each other.
 
@@ -46,13 +47,18 @@ class KalmanGreedyInterceptPolicy:
     to the Kalman-filtered enemy state estimate provided by the environment.
     This is the fourth comparison method in the research, alongside:
 
-        - GreedyInterceptPolicy  : greedy pursuit with true enemy state
-        - PPO Direct RL          : learned policy with true enemy state
-        - PPO RL-Kalman          : learned policy with Kalman-filtered state
+        - GreedyInterceptPolicy  : greedy pursuit of the raw noisy measurement
+          (Direct/measurement estimator, never ground truth)
+        - PPO Direct RL          : learned policy with the Direct/measurement estimator
+        - PPO RL-Kalman          : learned policy with the Kalman-filtered estimator
 
     By pairing Kalman estimation with a hand-designed (non-RL) controller,
     this baseline quantifies how much of the RL-Kalman performance gain (or
     loss) comes from the estimation step vs. the learned control.
+
+    GROUND-TRUTH INDEPENDENCE: this policy NEVER reads `info['enemy_pos']` or
+    `info['enemy_vel']`; it pursues only `info['e_hat']`, the Kalman filter's
+    estimated hostile position.
 
     Behavior:
         - When e_hat is available (enemy detected, Kalman estimate active):

@@ -26,7 +26,7 @@ This environment is used to compare three control approaches:
 | Method | Description |
 |--------|-------------|
 | **Greedy Baseline** | Hand-designed direct pursuit controller |
-| **PPO (Direct RL)** | Reinforcement learning with true enemy state observations |
+| **PPO (Direct RL)** | Reinforcement learning with noisy hostile-position measurements (+ finite-difference velocity) -- never true/ground-truth state |
 | **PPO (RL-Kalman)** | Reinforcement learning with Kalman-filtered state estimates |
 
 The research investigates whether learned policies outperform hand-designed baselines, and whether state estimation improves RL policy performance.

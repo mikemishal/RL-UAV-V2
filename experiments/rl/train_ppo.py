@@ -42,37 +42,34 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-# =============================================================================
-# TRAINING HYPERPARAMETERS
-# =============================================================================
-# These are exposed at the top for easy tuning.
-# Override via command line: --total-timesteps 500000 --learning-rate 0.0001
-
-TOTAL_TIMESTEPS = 200_000      # Total training timesteps
-LEARNING_RATE = 3e-4           # PPO learning rate (default: 3e-4)
-GAMMA = 0.99                   # Discount factor
-BATCH_SIZE = 64                # Minibatch size for PPO updates
-N_STEPS = 2048                 # Steps per rollout (before update)
-N_EPOCHS = 10                  # Number of epochs per update
-CLIP_RANGE = 0.2               # PPO clipping parameter
-ENT_COEF = 0.01                # Entropy coefficient (encourages exploration)
-VF_COEF = 0.5                  # Value function loss coefficient
-MAX_GRAD_NORM = 0.5            # Max gradient norm for clipping
-GAE_LAMBDA = 0.95              # GAE lambda for advantage estimation
-
-# Checkpointing
-CHECKPOINT_FREQ = 50_000       # Save checkpoint every N timesteps
-EVAL_FREQ = 10_000             # Evaluate policy every N timesteps
-N_EVAL_EPISODES = 20           # Episodes per evaluation
-
-# Reproducibility
-SEED = 42                      # Random seed for reproducibility
+from experiments.ppo_hyperparams import (
+    TOTAL_TIMESTEPS,
+    LEARNING_RATE,
+    GAMMA,
+    BATCH_SIZE,
+    N_STEPS,
+    N_EPOCHS,
+    CLIP_RANGE,
+    ENT_COEF,
+    VF_COEF,
+    MAX_GRAD_NORM,
+    GAE_LAMBDA,
+    CHECKPOINT_FREQ,
+    EVAL_FREQ,
+    N_EVAL_EPISODES,
+    SEED,
+)
+# NOTE: All PPO hyperparameters above are imported from the SINGLE SOURCE OF
+# TRUTH shared with experiments/rl_kalman/train_ppo_kalman.py (Kalman
+# track) -- experiments/ppo_hyperparams.py -- so the two tracks can never
+# silently drift apart.
 
 # =============================================================================
 # DIRECTORIES
 # =============================================================================
 MODEL_DIR = PROJECT_ROOT / "results" / "rl" / "models"
 LOG_DIR = PROJECT_ROOT / "results" / "rl" / "logs"
+TRAINING_LOG_DIR = PROJECT_ROOT / "results" / "rl" / "training_logs"
 
 # =============================================================================
 # IMPORTS (after path setup)
@@ -83,7 +80,6 @@ try:
     from stable_baselines3 import PPO
     from stable_baselines3.common.callbacks import (
         CheckpointCallback,
-        EvalCallback,
         CallbackList,
     )
     from stable_baselines3.common.monitor import Monitor
@@ -96,6 +92,7 @@ except ImportError as e:
 
 from uav_defend.envs import SoldierEnv
 from uav_defend.config import EnvConfig
+from experiments.success_rate_eval_callback import SuccessRateEvalCallback
 
 
 def make_env(seed: int = 0, rank: int = 0) -> callable:
@@ -110,7 +107,10 @@ def make_env(seed: int = 0, rank: int = 0) -> callable:
         Callable that creates a SoldierEnv wrapped with Monitor.
     """
     def _init():
-        env = SoldierEnv()
+        # Explicit Direct/measurement-track configuration (never rely on the
+        # environment's default use_kalman_tracking value).
+        config = EnvConfig(use_kalman_tracking=False)
+        env = SoldierEnv(config=config)
         env.reset(seed=seed + rank)
         # Monitor wrapper for logging episode stats
         log_dir = LOG_DIR / f"env_{rank}"
@@ -156,20 +156,26 @@ def create_callbacks(
     checkpoint_freq: int = CHECKPOINT_FREQ,
     eval_freq: int = EVAL_FREQ,
     n_eval_episodes: int = N_EVAL_EPISODES,
+    eval_seed: int = SEED + 2000,
 ) -> CallbackList:
     """
     Create training callbacks for checkpointing and evaluation.
     
     Args:
-        eval_env: Environment for evaluation.
+        eval_env: Environment for evaluation (kept for signature
+            compatibility; the shared SuccessRateEvalCallback constructs its
+            own evaluation environment internally so that every evaluation
+            episode uses the exact configured EnvConfig).
         checkpoint_freq: Steps between checkpoints.
         eval_freq: Steps between evaluations.
         n_eval_episodes: Episodes per evaluation.
+        eval_seed: Base seed for evaluation episodes.
     
     Returns:
-        CallbackList with checkpoint and eval callbacks.
+        CallbackList with checkpoint and success-rate eval callbacks.
     """
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
+    TRAINING_LOG_DIR.mkdir(parents=True, exist_ok=True)
     
     # Checkpoint callback - save model periodically
     checkpoint_callback = CheckpointCallback(
@@ -181,19 +187,23 @@ def create_callbacks(
         verbose=1,
     )
     
-    # Evaluation callback - evaluate and save best model
-    eval_callback = EvalCallback(
-        eval_env,
-        best_model_save_path=str(MODEL_DIR),
-        log_path=str(LOG_DIR),
+    # Shared success-rate evaluation callback (use_kalman_tracking=False) --
+    # IDENTICAL selection criterion to the Kalman track (see
+    # experiments/rl_kalman/train_ppo_kalman.py and
+    # experiments/success_rate_eval_callback.py). Replaces SB3's standard
+    # EvalCallback (which selects by mean reward) so that neither track is
+    # given an unfair model-selection advantage.
+    success_rate_eval_callback = SuccessRateEvalCallback(
+        use_kalman_tracking=False,
         eval_freq=eval_freq,
         n_eval_episodes=n_eval_episodes,
-        deterministic=True,
-        render=False,
+        eval_seed=eval_seed,
+        log_dir=str(TRAINING_LOG_DIR),
+        best_model_save_path=str(MODEL_DIR),
         verbose=1,
     )
     
-    return CallbackList([checkpoint_callback, eval_callback])
+    return CallbackList([checkpoint_callback, success_rate_eval_callback])
 
 
 def train_ppo(

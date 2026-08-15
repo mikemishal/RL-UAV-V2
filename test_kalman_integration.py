@@ -1,9 +1,14 @@
 """Test Kalman filter integration in SoldierEnv."""
 
 from uav_defend.envs.soldier_env import SoldierEnv
+from uav_defend.config import EnvConfig
 import numpy as np
 
-env = SoldierEnv()
+# Explicit Kalman-track configuration: the environment's default is now
+# use_kalman_tracking=False (Direct/measurement track), so this test -- whose
+# entire purpose is verifying Kalman filter integration -- must opt in
+# explicitly rather than relying on any default.
+env = SoldierEnv(config=EnvConfig(use_kalman_tracking=True))
 obs, info = env.reset(seed=42)
 print("Observation space:", env.observation_space)
 print("Initial obs shape:", obs.shape)

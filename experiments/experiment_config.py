@@ -11,7 +11,8 @@ SYNCHRONIZED EXPERIMENT TRACKS
 
     1. Baseline (greedy pursuit)
     2. Kalman Baseline (greedy pursuit on Kalman estimates)
-    3. Direct RL (PPO with true observations)
+    3. Direct RL (PPO on raw noisy hostile-position measurements +
+       finite-difference velocity -- never true/ground-truth observations)
     4. RL-with-Kalman (PPO with Kalman-filtered observations)
 
 All tracks share:

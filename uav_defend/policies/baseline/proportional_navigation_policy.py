@@ -47,11 +47,15 @@ ONLY in how the target position/velocity is estimated:
 
     state_source="measurement" (canonical name "pn"):
         Hostile position is the raw noisy measurement `enemy_measurement`.
-        Hostile velocity is estimated by a simple finite difference of
-        successive measurements: v_hat_e(t) = (z_t - z_{t-1}) / dt.
-        No smoothing or low-pass filtering is added -- this is intentionally
-        a clean, explainable "raw measurement + finite-difference velocity"
-        baseline.
+        Hostile velocity is the environment's standardized finite-difference
+        measurement velocity `info["enemy_measurement_velocity"]` (valid only
+        when `info["enemy_measurement_velocity_valid"]` is True, i.e. from
+        the second measurement onward): v_hat_e(t) = (z_t - z_{t-1}) / dt.
+        This estimator is computed ONCE by the environment (see
+        SoldierEnv._update_detection) and shared by the Direct observation
+        and every measurement-mode controller (Greedy, PN, Lead) -- this
+        policy does NOT maintain its own independent finite-difference
+        history.
 
     state_source="kalman" (canonical name "pn_kalman"):
         Hostile position/velocity are taken directly from the environment's
@@ -162,9 +166,6 @@ class ProportionalNavigationPolicy:
         if self.dt <= 0:
             raise ValueError(f"dt must be > 0, got {self.dt}")
 
-        # Measurement-mode finite-difference state (cleared on reset()).
-        self._prev_measurement: np.ndarray | None = None
-
         # Diagnostics (NOT part of the RL observation; for testing/debugging).
         self.last_range: float | None = None
         self.last_los_unit: np.ndarray | None = None
@@ -176,12 +177,12 @@ class ProportionalNavigationPolicy:
 
     def reset(self) -> None:
         """
-        Reset all per-episode state.
+        Reset all per-episode diagnostic state.
 
-        Clears the finite-difference measurement history (measurement mode)
-        and all diagnostics. No information may leak between episodes.
+        The measurement-mode finite-difference velocity is owned by the
+        environment (see SoldierEnv._update_detection), so there is no
+        internal finite-difference history to clear here.
         """
-        self._prev_measurement = None
         self.last_range = None
         self.last_los_unit = None
         self.last_closing_speed = None
@@ -201,7 +202,8 @@ class ProportionalNavigationPolicy:
                 available this step.
             target_vel: shape (3,) or None if velocity is not yet
                 established (measurement mode: fewer than two measurements
-                so far; kalman mode: v_hat unavailable).
+                so far, per info["enemy_measurement_velocity_valid"]; kalman
+                mode: v_hat unavailable).
         """
         if self.state_source == "kalman":
             e_hat = info.get("e_hat")
@@ -212,16 +214,20 @@ class ProportionalNavigationPolicy:
             target_vel = np.asarray(v_hat, dtype=np.float64) if v_hat is not None else None
             return target_pos, target_vel
 
-        # state_source == "measurement"
+        # state_source == "measurement": consume the environment's
+        # standardized finite-difference measurement velocity -- the same
+        # estimator used by the Direct observation and shared across all
+        # measurement-mode controllers. No independent per-policy finite
+        # differencing.
         meas = info.get("enemy_measurement")
         if meas is None:
             return None, None
-        z_t = np.asarray(meas, dtype=np.float64)
-        target_vel = None
-        if self._prev_measurement is not None:
-            target_vel = (z_t - self._prev_measurement) / self.dt
-        self._prev_measurement = z_t.copy()
-        return z_t, target_vel
+        target_pos = np.asarray(meas, dtype=np.float64)
+        if info.get("enemy_measurement_velocity_valid", False):
+            target_vel = np.asarray(info.get("enemy_measurement_velocity"), dtype=np.float64)
+        else:
+            target_vel = None
+        return target_pos, target_vel
 
     def _pursue(self, target: np.ndarray | None, defender_pos: np.ndarray, eps: float) -> np.ndarray:
         """Pure-pursuit fallback direction toward `target` (never ground truth)."""

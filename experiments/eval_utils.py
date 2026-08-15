@@ -26,6 +26,8 @@ from typing import Callable, Iterable, Protocol, Any
 import numpy as np
 import pandas as pd
 
+from uav_defend.policies.sanitize import build_policy_info, estimator_mode_for_env
+
 
 @dataclass
 class Trajectory:
@@ -126,6 +128,7 @@ def run_episode(env, policy: Policy, seed: int) -> dict:
     """
     obs, info = env.reset(seed=seed)
     policy.reset()
+    estimator_mode = estimator_mode_for_env(env)
     
     # Track metrics
     total_reward = 0.0
@@ -142,7 +145,11 @@ def run_episode(env, policy: Policy, seed: int) -> dict:
     done = False
     
     while not done:
-        action = policy.act(obs, info)
+        # Sanitized info: policy.act() NEVER sees ground truth (enemy_pos,
+        # enemy_vel) or fields from the other estimator track. The
+        # evaluator's own metrics below continue to use the full `info`.
+        policy_info = build_policy_info(info, estimator_mode)
+        action = policy.act(obs, policy_info)
         obs, reward, done, truncated, info = env.step(action)
         step += 1
         total_reward += reward
@@ -225,6 +232,7 @@ def run_episode_with_trajectory(env, policy: Policy, seed: int) -> tuple[dict, T
     """
     obs, info = env.reset(seed=seed)
     policy.reset()
+    estimator_mode = estimator_mode_for_env(env)
     
     # Helper to get e_hat with fallback to NaN (unobserved before detection)
     def get_e_hat(info_dict):
@@ -255,7 +263,11 @@ def run_episode_with_trajectory(env, policy: Policy, seed: int) -> tuple[dict, T
     done = False
     
     while not done:
-        action = policy.act(obs, info)
+        # Sanitized info: policy.act() NEVER sees ground truth (enemy_pos,
+        # enemy_vel) or fields from the other estimator track. The
+        # trajectory/metrics below continue to use the full `info`.
+        policy_info = build_policy_info(info, estimator_mode)
+        action = policy.act(obs, policy_info)
         obs, reward, done, truncated, info = env.step(action)
         step += 1
         total_reward += reward
@@ -785,11 +797,12 @@ def format_rl_kalman_comparison_df(
 
 
 def compare_policies(
-    env_factory: Callable,
-    policies: dict[str, Policy],
-    seeds: Iterable[int],
+    env_factory: Callable | None = None,
+    policies: dict[str, Policy] = None,
+    seeds: Iterable[int] = None,
     verbose: bool = True,
     capture_trajectories: bool = False,
+    env_factories: dict[str, Callable] | None = None,
 ) -> tuple[dict[str, pd.DataFrame], dict[str, dict], dict[str, list[Trajectory]] | None]:
     """
     Compare multiple policies on the same set of seeds.
@@ -797,11 +810,21 @@ def compare_policies(
     Useful for fair comparison between baseline and RL policies.
     
     Args:
-        env_factory: Callable that returns a new environment instance.
+        env_factory: Callable that returns a new environment instance, used
+            for every policy UNLESS a per-policy override is given via
+            `env_factories` (see below). Required if a given policy name has
+            no entry in `env_factories`.
         policies: Dictionary mapping policy names to policy instances.
         seeds: Iterable of seeds (same seeds used for all policies).
         verbose: If True, print progress.
         capture_trajectories: If True, capture trajectories for each policy.
+        env_factories: Optional dict mapping policy name -> env factory, for
+            comparisons that mix Direct/measurement-track and Kalman-track
+            policies (which REQUIRE different EnvConfig.use_kalman_tracking
+            settings -- evaluating a *_kalman policy against a Direct-track
+            environment would silently receive raw measurements instead of
+            Kalman estimates, and vice versa). An entry here takes
+            precedence over the shared `env_factory` for that policy name.
     
     Returns:
         Tuple of (dfs, summaries, trajectories_dict):
@@ -814,13 +837,21 @@ def compare_policies(
     dfs = {}
     summaries = {}
     trajectories_dict = {} if capture_trajectories else None
+    env_factories = env_factories or {}
     
     for name, policy in policies.items():
+        this_env_factory = env_factories.get(name, env_factory)
+        if this_env_factory is None:
+            raise ValueError(
+                f"No env_factory available for policy '{name}': pass either "
+                f"a shared `env_factory` or an entry in `env_factories`."
+            )
+        
         if verbose:
             print(f"\n>>> Evaluating: {name}")
         
         df, summary, trajectories = evaluate_policy(
-            env_factory=env_factory,
+            env_factory=this_env_factory,
             policy=policy,
             seeds=seeds,
             verbose=verbose,

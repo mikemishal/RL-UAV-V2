@@ -32,6 +32,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import pandas as pd
 
 from uav_defend.envs import SoldierEnv
+from uav_defend.config import EnvConfig
 from uav_defend.policies import get_policy, list_policies, get_policy_name
 
 from experiments.eval_utils import (
@@ -41,6 +42,7 @@ from experiments.eval_utils import (
     select_representative_trajectories,
     save_trajectories,
 )
+from experiments.method_specs import get_method_spec
 
 
 def evaluate_single_policy(
@@ -77,8 +79,17 @@ def evaluate_single_policy(
     else:
         policy = get_policy(policy_name)
     
-    # Create environment factory
-    env_factory = lambda: SoldierEnv()
+    # Create environment factory. use_kalman_tracking is derived from the
+    # method's canonical estimator (see experiments/method_specs.py) --
+    # NEVER left to the environment's default, since a *_kalman policy run
+    # against a Direct-track environment would silently receive raw
+    # measurements instead of Kalman estimates (and vice versa).
+    try:
+        estimator = get_method_spec(get_policy_name(policy)).estimator
+    except KeyError:
+        estimator = "measurement"
+    use_kalman = estimator == "kalman"
+    env_factory = lambda: SoldierEnv(config=EnvConfig(use_kalman_tracking=use_kalman))
     
     # Generate seeds
     seeds = range(seed_offset, seed_offset + n_episodes)
@@ -161,15 +172,29 @@ def evaluate_multiple_policies(
         else:
             policies[name] = get_policy(name)
     
-    # Create environment factory
-    env_factory = lambda: SoldierEnv()
+    # Create per-policy environment factories: use_kalman_tracking is
+    # derived from each policy's canonical estimator (see
+    # experiments/method_specs.py). Different policies in the SAME
+    # comparison may legitimately need different EnvConfig settings (e.g.
+    # "greedy" vs "pn_kalman"), so a single shared env_factory is not
+    # sufficient here -- see compare_policies(env_factories=...).
+    env_factories = {}
+    for name, policy in policies.items():
+        try:
+            estimator = get_method_spec(get_policy_name(policy)).estimator
+        except KeyError:
+            estimator = "measurement"
+        use_kalman = estimator == "kalman"
+        env_factories[name] = (
+            lambda use_kalman=use_kalman: SoldierEnv(config=EnvConfig(use_kalman_tracking=use_kalman))
+        )
     
     # Generate seeds (same for all policies for fair comparison)
     seeds = range(seed_offset, seed_offset + n_episodes)
     
     # Run comparison
     dfs, summaries, trajectories_dict = compare_policies(
-        env_factory=env_factory,
+        env_factories=env_factories,
         policies=policies,
         seeds=seeds,
         verbose=verbose,

@@ -84,13 +84,16 @@ class EnvConfig:
     enemy_evasion_gain: float = 0.75      # Dimensionless relative evasion strength, lambda_e in [0, 1]
     
     # RL reward shaping parameters
+    # NOTE: there is no Kalman-only "tracking error improvement" reward term.
+    # Tracking error is an EVALUATION metric only (see info["tracking_error"]),
+    # never a training reward, so Direct and Kalman tracks optimize exactly
+    # the same task reward (see SoldierEnv.step()).
     reward_intercept: float = 100.0  # Reward for intercepting enemy (WIN)
     reward_soldier_caught: float = -100.0  # Penalty for enemy catching soldier (LOSS)
     reward_unsafe_intercept: float = -150.0  # Severe penalty for unsafe intercept (discourage risky behavior)
     reward_timeout: float = -100.0  # Penalty for timeout (failed to intercept)
     reward_progress_scale: float = 5.0  # Scale for distance progress reward (closing on enemy)
     reward_time_penalty: float = -0.05  # Small time penalty per step
-    reward_tracking_scale: float = 1.0  # Scale for tracking error improvement reward (after detection)
     reward_proximity_warning: float = -0.5  # Per-step penalty when enemy is close to soldier (increased)
     
     # =========================================================================
@@ -110,10 +113,16 @@ class EnvConfig:
     # - measurement_var is the single official sensor-noise parameter.
     # - After detection, a noisy enemy-position measurement is generated each step
     #   with covariance measurement_var * I for all controller modes.
+    # - The Direct/measurement track additionally derives a finite-difference
+    #   measurement velocity from consecutive measurements (see
+    #   SoldierEnv._update_detection); no filtering is applied to it.
     # - If use_kalman_tracking=True, Kalman filter smooths these measurements.
-    # - If use_kalman_tracking=False, policies receive the raw noisy measurement.
+    # - If use_kalman_tracking=False (the default), policies/observations receive
+    #   the raw noisy measurement plus its finite-difference velocity estimate.
+    #   Kalman filtering is an explicit opt-in estimator, not the environment's
+    #   implicit default.
     # =========================================================================
-    use_kalman_tracking: bool = True  # If True, use Kalman filter for enemy state estimation
+    use_kalman_tracking: bool = False  # If True, use Kalman filter for enemy state estimation
     process_var: float = 1.0           # Process noise variance (higher = trust measurements more)
     measurement_var: float = 0.5       # Enemy position measurement noise variance (per axis)
     lead_time: float = 0.0             # Prediction lead time for extrapolating enemy position (seconds)

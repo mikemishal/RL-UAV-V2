@@ -120,6 +120,13 @@ def test_pre_detection_escort():
 # D. Finite-difference velocity
 # ---------------------------------------------------------------------------
 def test_finite_difference_velocity():
+    """
+    The policy no longer computes its own finite difference: it consumes
+    the environment's standardized info["enemy_measurement_velocity"] /
+    info["enemy_measurement_velocity_valid"] (see SoldierEnv._update_detection).
+    This isolated test supplies those fields directly, matching exactly what
+    the environment would compute for the given z0/z1/dt.
+    """
     policy = LeadInterceptPolicy(state_source="measurement", dt=0.5)
     defender_pos = np.zeros(3)
     z0 = np.array([10.0, 5.0, 20.0])
@@ -127,15 +134,18 @@ def test_finite_difference_velocity():
 
     info0 = _base_info(defender_pos)
     info0["enemy_measurement"] = z0
+    info0["enemy_measurement_velocity_valid"] = False
     policy.act(None, info0)
     assert policy.last_guidance_mode == "first_measurement_fallback"
     assert policy.last_target_velocity_estimate is None
 
+    expected_vel = (z1 - z0) / 0.5
     info1 = _base_info(defender_pos)
     info1["enemy_measurement"] = z1
+    info1["enemy_measurement_velocity"] = expected_vel
+    info1["enemy_measurement_velocity_valid"] = True
     policy.act(None, info1)
 
-    expected_vel = (z1 - z0) / 0.5
     assert np.allclose(policy.last_target_velocity_estimate, expected_vel, atol=1e-4), (
         policy.last_target_velocity_estimate, expected_vel
     )
@@ -207,6 +217,10 @@ def test_ground_truth_leakage():
 
         step2 = _base_info(defender_pos)
         step2["enemy_measurement"] = np.array([10.5, 0.0, 0.0])
+        step2["enemy_measurement_velocity"] = (
+            np.array([10.5, 0.0, 0.0]) - step1["enemy_measurement"]
+        ) / policy.dt
+        step2["enemy_measurement_velocity_valid"] = True
         step2["e_hat"] = np.array([10.5, 0.0, 0.0])
         step2["v_hat"] = np.array([-1.0, 0.0, 0.0])
         step2["enemy_pos"] = np.array([10.5, 0.0, 0.0])

@@ -51,8 +51,13 @@ TWO SENSING MODES, ONE INTERCEPT GEOMETRY
 =============================================================================
     state_source="measurement" (canonical name "lead"):
         Hostile position is the raw noisy measurement `enemy_measurement`.
-        Hostile velocity is estimated by finite differences of successive
-        measurements: v_hat_e(t) = (z_t - z_{t-1}) / dt. No smoothing.
+        Hostile velocity is the environment's standardized finite-difference
+        measurement velocity `info["enemy_measurement_velocity"]` (valid only
+        when `info["enemy_measurement_velocity_valid"]` is True). This
+        estimator is computed ONCE by the environment (see
+        SoldierEnv._update_detection) and shared by the Direct observation
+        and every measurement-mode controller (Greedy, PN, Lead) -- no
+        independent per-policy finite differencing.
 
     state_source="kalman" (canonical name "lead_kalman"):
         Hostile position/velocity come directly from the environment's
@@ -155,9 +160,6 @@ class LeadInterceptPolicy:
         if self.eps <= 0:
             raise ValueError(f"eps must be > 0, got {self.eps}")
 
-        # Measurement-mode finite-difference state (cleared on reset()).
-        self._prev_measurement: np.ndarray | None = None
-
         self._init_diagnostics()
 
     def _init_diagnostics(self) -> None:
@@ -176,12 +178,12 @@ class LeadInterceptPolicy:
 
     def reset(self) -> None:
         """
-        Reset all per-episode state.
+        Reset all per-episode diagnostic state.
 
-        Clears the finite-difference measurement history (measurement mode)
-        and all diagnostics. No information may leak between episodes.
+        The measurement-mode finite-difference velocity is owned by the
+        environment (see SoldierEnv._update_detection), so there is no
+        internal finite-difference history to clear here.
         """
-        self._prev_measurement = None
         self._init_diagnostics()
 
     def _get_target_state(self, info: dict) -> tuple[np.ndarray | None, np.ndarray | None]:
@@ -199,16 +201,20 @@ class LeadInterceptPolicy:
             target_vel = np.asarray(v_hat, dtype=np.float64) if v_hat is not None else None
             return target_pos, target_vel
 
-        # state_source == "measurement"
+        # state_source == "measurement": consume the environment's
+        # standardized finite-difference measurement velocity -- the same
+        # estimator used by the Direct observation and shared across all
+        # measurement-mode controllers. No independent per-policy finite
+        # differencing.
         meas = info.get("enemy_measurement")
         if meas is None:
             return None, None
-        z_t = np.asarray(meas, dtype=np.float64)
-        target_vel = None
-        if self._prev_measurement is not None:
-            target_vel = (z_t - self._prev_measurement) / self.dt
-        self._prev_measurement = z_t.copy()
-        return z_t, target_vel
+        target_pos = np.asarray(meas, dtype=np.float64)
+        if info.get("enemy_measurement_velocity_valid", False):
+            target_vel = np.asarray(info.get("enemy_measurement_velocity"), dtype=np.float64)
+        else:
+            target_vel = None
+        return target_pos, target_vel
 
     def _pursue(self, target: np.ndarray | None, defender_pos: np.ndarray, eps: float) -> np.ndarray:
         """Pure-pursuit fallback direction toward `target` (never ground truth)."""

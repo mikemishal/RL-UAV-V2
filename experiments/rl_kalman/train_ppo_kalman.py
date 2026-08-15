@@ -55,32 +55,34 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from experiments.experiment_config import KALMAN_CONFIG
+from experiments.ppo_hyperparams import (
+    TOTAL_TIMESTEPS,
+    LEARNING_RATE,
+    GAMMA,
+    BATCH_SIZE,
+    N_STEPS,
+    N_EPOCHS,
+    CLIP_RANGE,
+    ENT_COEF,
+    VF_COEF,
+    MAX_GRAD_NORM,
+    GAE_LAMBDA,
+    CHECKPOINT_FREQ,
+    EVAL_FREQ,
+    N_EVAL_EPISODES,
+    SEED,
+)
 
 # =============================================================================
-# TRAINING HYPERPARAMETERS
+# KALMAN FILTER PARAMETERS
 # =============================================================================
-TOTAL_TIMESTEPS = 200_000      # Total training timesteps
-LEARNING_RATE = 3e-4           # PPO learning rate
-GAMMA = 0.99                   # Discount factor
-BATCH_SIZE = 64                # Minibatch size for PPO updates
-N_STEPS = 2048                 # Steps per rollout (before update)
-N_EPOCHS = 10                  # Number of epochs per update
-CLIP_RANGE = 0.2               # PPO clipping parameter
-ENT_COEF = 0.01                # Entropy coefficient
-VF_COEF = 0.5                  # Value function loss coefficient
-MAX_GRAD_NORM = 0.5            # Max gradient norm
-GAE_LAMBDA = 0.95              # GAE lambda
-
-# Kalman Filter Parameters (from shared config for reproducibility)
+# From shared config for reproducibility. All other PPO hyperparameters are
+# imported from experiments.ppo_hyperparams above -- the SINGLE SOURCE OF
+# TRUTH shared with experiments/rl/train_ppo.py (Direct track), so the two
+# tracks can never silently drift apart.
 PROCESS_VAR = KALMAN_CONFIG["process_var"]
 MEASUREMENT_VAR = KALMAN_CONFIG["measurement_var"]
 LEAD_TIME = KALMAN_CONFIG["lead_time"]
-
-# Checkpointing
-CHECKPOINT_FREQ = 50_000
-EVAL_FREQ = 10_000
-N_EVAL_EPISODES = 20
-SEED = 42
 
 # =============================================================================
 # DIRECTORIES
@@ -113,176 +115,17 @@ except ImportError as e:
 
 from uav_defend.envs import SoldierEnv
 from uav_defend.config import EnvConfig
+from experiments.success_rate_eval_callback import SuccessRateEvalCallback
 
 
 # =============================================================================
-# CUSTOM EVALUATION CALLBACK
+# NOTE ON MODEL-SELECTION CALLBACK
 # =============================================================================
-
-class KalmanEvalCallback(BaseCallback):
-    """
-    Custom evaluation callback for Kalman-based RL training.
-    
-    Tracks detailed metrics specific to the UAV defense task:
-        - Success rate (intercepts)
-        - Failure rate (soldier caught + unsafe intercept)
-        - Timeout rate
-        - Mean episode length
-        - Mean tracking error (Kalman estimation accuracy)
-    
-    Saves best model based on success rate.
-    """
-    
-    def __init__(
-        self,
-        eval_freq: int = 10000,
-        n_eval_episodes: int = 20,
-        process_var: float = 1.0,
-        measurement_var: float = 0.5,
-        lead_time: float = 0.0,
-        eval_seed: int = 42,
-        log_dir: str = ".",
-        best_model_save_path: str = ".",
-        verbose: int = 1,
-    ):
-        super().__init__(verbose)
-        self.eval_freq = eval_freq
-        self.n_eval_episodes = n_eval_episodes
-        self.process_var = process_var
-        self.measurement_var = measurement_var
-        self.lead_time = lead_time
-        self.eval_seed = eval_seed
-        self.log_dir = Path(log_dir)
-        self.best_model_save_path = Path(best_model_save_path)
-        
-        # Track best success rate
-        self.best_success_rate = -1.0
-        
-        # Evaluation history
-        self.eval_history = []
-    
-    def _on_step(self) -> bool:
-        """Called after each training step."""
-        if self.n_calls % self.eval_freq == 0:
-            self._evaluate()
-        return True
-    
-    def _evaluate(self) -> None:
-        """Run evaluation episodes and log metrics."""
-        if self.verbose > 0:
-            print(f"\n[Eval @ {self.num_timesteps} timesteps]")
-        
-        # Create fresh evaluation environment with fixed seeds
-        config = EnvConfig(
-            use_kalman_tracking=True,
-            process_var=self.process_var,
-            measurement_var=self.measurement_var,
-            lead_time=self.lead_time,
-        )
-        
-        # Collect episode statistics
-        successes = 0
-        failures = 0
-        timeouts = 0
-        episode_lengths = []
-        tracking_errors = []
-        
-        for ep_idx in range(self.n_eval_episodes):
-            env = SoldierEnv(config=config)
-            obs, info = env.reset(seed=self.eval_seed + ep_idx)
-            
-            done = False
-            ep_tracking_errors = []
-            
-            while not done:
-                # Get action from model (deterministic)
-                action, _ = self.model.predict(obs, deterministic=True)
-                obs, reward, terminated, truncated, info = env.step(action)
-                done = terminated or truncated
-                
-                # Track Kalman tracking error
-                if info.get("tracking_error") is not None:
-                    ep_tracking_errors.append(info["tracking_error"])
-            
-            # Record outcome
-            outcome = info.get("outcome", "unknown")
-            if outcome == "intercepted":
-                successes += 1
-            elif outcome == "timeout":
-                timeouts += 1
-            else:
-                failures += 1
-            
-            episode_lengths.append(info.get("step_count", 0))
-            if ep_tracking_errors:
-                tracking_errors.append(np.mean(ep_tracking_errors))
-            
-            env.close()
-        
-        # Compute metrics
-        n = self.n_eval_episodes
-        success_rate = successes / n
-        failure_rate = failures / n
-        timeout_rate = timeouts / n
-        mean_ep_length = np.mean(episode_lengths) if episode_lengths else 0.0
-        mean_tracking_error = np.mean(tracking_errors) if tracking_errors else 0.0
-        
-        # Log metrics
-        eval_result = {
-            "timesteps": self.num_timesteps,
-            "success_rate": success_rate,
-            "failure_rate": failure_rate,
-            "timeout_rate": timeout_rate,
-            "mean_episode_length": mean_ep_length,
-            "mean_tracking_error": mean_tracking_error,
-            "n_episodes": n,
-            "successes": successes,
-            "failures": failures,
-            "timeouts": timeouts,
-        }
-        self.eval_history.append(eval_result)
-        
-        # Print summary
-        if self.verbose > 0:
-            print(f"  Success: {success_rate:.1%} | Fail: {failure_rate:.1%} | "
-                  f"Timeout: {timeout_rate:.1%}")
-            print(f"  Mean ep len: {mean_ep_length:.1f} | "
-                  f"Mean tracking error: {mean_tracking_error:.3f}")
-        
-        # Save best model based on success rate
-        if success_rate > self.best_success_rate:
-            self.best_success_rate = success_rate
-            best_path = self.best_model_save_path / "best_model"
-            self.model.save(str(best_path))
-            if self.verbose > 0:
-                print(f"  New best model! Success rate: {success_rate:.1%}")
-        
-        # Save evaluation log
-        self._save_eval_log()
-    
-    def _save_eval_log(self) -> None:
-        """Save evaluation history to JSON file."""
-        self.log_dir.mkdir(parents=True, exist_ok=True)
-        log_path = self.log_dir / "kalman_eval_log.json"
-        
-        with open(log_path, "w") as f:
-            json.dump({
-                "eval_history": self.eval_history,
-                "best_success_rate": self.best_success_rate,
-                "config": {
-                    "process_var": self.process_var,
-                    "measurement_var": self.measurement_var,
-                    "lead_time": self.lead_time,
-                    "n_eval_episodes": self.n_eval_episodes,
-                    "eval_freq": self.eval_freq,
-                }
-            }, f, indent=2)
-    
-    def _on_training_end(self) -> None:
-        """Called at the end of training."""
-        self._save_eval_log()
-        if self.verbose > 0:
-            print(f"\n[Training complete] Best success rate: {self.best_success_rate:.1%}")
+# The success-rate-based evaluation/model-selection callback is now shared
+# with experiments/rl/train_ppo.py (Direct track) via
+# experiments.success_rate_eval_callback.SuccessRateEvalCallback, so both
+# tracks use an IDENTICAL best-model-selection criterion (success rate).
+# See create_callbacks() below.
 
 
 def make_env(
@@ -383,8 +226,11 @@ def create_callbacks(
         verbose=1,
     )
     
-    # Custom Kalman evaluation callback with detailed metrics
-    kalman_eval_callback = KalmanEvalCallback(
+    # Shared success-rate evaluation callback (use_kalman_tracking=True) --
+    # IDENTICAL selection criterion to the Direct track (see
+    # experiments/rl/train_ppo.py and experiments/success_rate_eval_callback.py).
+    success_rate_eval_callback = SuccessRateEvalCallback(
+        use_kalman_tracking=True,
         eval_freq=eval_freq,
         n_eval_episodes=n_eval_episodes,
         process_var=process_var,
@@ -396,7 +242,7 @@ def create_callbacks(
         verbose=1,
     )
     
-    return CallbackList([checkpoint_callback, kalman_eval_callback])
+    return CallbackList([checkpoint_callback, success_rate_eval_callback])
 
 
 def train_ppo_kalman(
