@@ -148,7 +148,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Post-training diagnostic holdout evaluation (NOT final paper results)")
     parser.add_argument("--tracks", type=str, nargs="+", default=list(ALL_TRACKS), choices=list(ALL_TRACKS))
     parser.add_argument("--seeds", type=int, nargs="+", default=list(TRAINING_SEEDS))
-    parser.add_argument("--output-root", type=str, default=str(PROJECT_ROOT / "results"))
+    parser.add_argument("--output-root", type=str, default=str(PROJECT_ROOT / "results" / "training"))
     parser.add_argument(
         "--summary-path", type=str,
         default=str(PROJECT_ROOT / "results" / "training_diagnostic" / "diagnostic_summary.json"),

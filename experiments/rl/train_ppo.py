@@ -55,7 +55,7 @@ def train_ppo(
     Returns the training manifest dict (see training_runner.run_training).
     """
     if output_dir is None:
-        output_dir = run_output_dir(PROJECT_ROOT / "results", "direct", seed)
+        output_dir = run_output_dir(PROJECT_ROOT / "results" / "training", "direct", seed)
     return run_training(
         track="direct",
         seed=seed,

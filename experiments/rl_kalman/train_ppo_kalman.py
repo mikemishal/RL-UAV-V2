@@ -57,7 +57,7 @@ def train_ppo_kalman(
     Returns the training manifest dict (see training_runner.run_training).
     """
     if output_dir is None:
-        output_dir = run_output_dir(PROJECT_ROOT / "results", "kalman", seed)
+        output_dir = run_output_dir(PROJECT_ROOT / "results" / "training", "kalman", seed)
     return run_training(
         track="kalman",
         seed=seed,

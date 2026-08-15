@@ -15,7 +15,14 @@ Usage:
     python experiments/train_ppo_comparison.py --timesteps 50000
     python experiments/train_ppo_comparison.py --overwrite
 
-Output layout:
+    # Separate 400k replication campaign (own output root, never touches
+    # the original 200k campaign under results/training/):
+    python experiments/train_ppo_comparison.py \
+        --timesteps 400000 \
+        --output-root results/training_400k \
+        --campaign 400k_replication
+
+Output layout (default, 200k campaign):
     results/training/direct/seed_<N>/{best_model.zip, final_model.zip,
         checkpoints/, training_logs/, monitor/, training_manifest.json}
     results/training/kalman/seed_<N>/{...}
@@ -64,8 +71,12 @@ def parse_args() -> argparse.Namespace:
         help=f"Number of validation episodes per evaluation (default: {VALIDATION_EPISODES})",
     )
     parser.add_argument(
-        "--output-root", type=str, default=str(PROJECT_ROOT / "results"),
-        help="Root results/ directory (default: <repo>/results)",
+        "--output-root", type=str, default=str(PROJECT_ROOT / "results" / "training"),
+        help="Campaign output root, containing <track>/seed_<N>/ (default: <repo>/results/training)",
+    )
+    parser.add_argument(
+        "--campaign", type=str, default="200k_initial",
+        help="Free-text campaign label recorded in each run's manifest (default: 200k_initial)",
     )
     parser.add_argument(
         "--overwrite", action="store_true",
@@ -107,6 +118,7 @@ def main() -> int:
             validation_episodes=args.validation_episodes,
             overwrite=args.overwrite,
             progress_bar=args.progress_bar,
+            campaign=args.campaign,
         )
         results.append((track, seed, manifest))
         print(f"  best_validation_success_rate={manifest.get('best_validation_success_rate')} "

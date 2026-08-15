@@ -17,6 +17,8 @@ Covers:
     H. Direct EnvConfig has use_kalman_tracking=False.
     I. Kalman EnvConfig has use_kalman_tracking=True.
     J. All other behavioral EnvConfig fields match between tracks.
+    K. 200k and 400k campaign output roots cannot collide (feature/ppo-400k-replication).
+    L. Campaign metadata fields are recorded in the manifest.
 
 Run directly:
     python test_training_protocol.py
@@ -44,6 +46,9 @@ from experiments.training_protocol import (
     FINAL_TEST_SEED_OFFSET,
     assert_not_final_test_seed,
     run_output_dir,
+    CAMPAIGN_200K_DIRNAME,
+    CAMPAIGN_400K_DIRNAME,
+    CAMPAIGN_400K_TIMESTEPS,
 )
 from experiments.training_runner import (
     build_env_config,
@@ -263,6 +268,64 @@ def test_env_configs_identical_except_estimator():
     )
 
 
+# ---------------------------------------------------------------------------
+# K. 200k/400k campaign output roots cannot collide (feature/ppo-400k-replication)
+# ---------------------------------------------------------------------------
+def test_campaign_output_roots_no_collision():
+    assert CAMPAIGN_400K_TIMESTEPS == 400_000
+    assert CAMPAIGN_200K_DIRNAME == "training"
+    assert CAMPAIGN_400K_DIRNAME == "training_400k"
+
+    root = Path("results")
+    paths_200k = set()
+    paths_400k = set()
+    for track in ("direct", "kalman"):
+        for seed in TRAINING_SEEDS:
+            p200 = run_output_dir(root / CAMPAIGN_200K_DIRNAME, track, seed)
+            p400 = run_output_dir(root / CAMPAIGN_400K_DIRNAME, track, seed)
+            assert p200 != p400, f"200k/400k path collision: {p200}"
+            assert p200 not in paths_400k and p400 not in paths_200k, (
+                "a 400k run could overwrite its corresponding 200k run (or vice versa)"
+            )
+            assert p400 not in paths_400k, f"duplicate 400k output path: {p400}"
+            paths_200k.add(p200)
+            paths_400k.add(p400)
+
+    assert len(paths_200k) == 6, "expected 6 unique 200k paths (2 tracks x 3 seeds)"
+    assert len(paths_400k) == 6, "expected 6 unique 400k paths (2 tracks x 3 seeds)"
+    assert paths_200k.isdisjoint(paths_400k)
+
+
+# ---------------------------------------------------------------------------
+# L. Campaign metadata fields are recorded in the manifest
+# ---------------------------------------------------------------------------
+def test_campaign_metadata_fields():
+    tmp = Path(tempfile.mkdtemp(prefix="ppo_campaign_meta_test_"))
+    try:
+        output_dir = tmp / "direct_seed42_400k"
+        manifest = run_training(
+            track="direct",
+            seed=42,
+            output_dir=output_dir,
+            total_timesteps=64,
+            validation_seed_offset=10_000,
+            validation_episodes=2,
+            checkpoint_freq=2048,
+            eval_freq=2048,
+            overwrite=True,
+            verbose=0,
+            campaign="400k_replication",
+        )
+        assert manifest["campaign"] == "400k_replication"
+        assert manifest["training_budget_timesteps"] == 64
+        assert manifest["training_mode"] == "fresh_from_scratch"
+        assert manifest["previous_200k_campaign_preserved"] is True
+        assert manifest["validation_seed_start"] == 10_000
+        assert manifest["validation_seed_end"] == 10_001
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def main() -> int:
     tests = [
         ("A. Training seeds are (42, 43, 44)", test_training_seeds),
@@ -274,6 +337,8 @@ def main() -> int:
         ("H. Direct config use_kalman_tracking=False", test_direct_config_explicit_false),
         ("I. Kalman config use_kalman_tracking=True", test_kalman_config_explicit_true),
         ("J. All other EnvConfig fields match", test_env_configs_identical_except_estimator),
+        ("K. 200k/400k campaign output roots cannot collide", test_campaign_output_roots_no_collision),
+        ("L. Campaign metadata fields recorded in manifest", test_campaign_metadata_fields),
     ]
 
     print("=== Training Protocol Tests ===\n")

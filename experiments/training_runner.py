@@ -198,6 +198,7 @@ def run_training(
     overwrite: bool = False,
     verbose: int = 1,
     progress_bar: bool = False,
+    campaign: str = "200k_initial",
 ) -> dict:
     """
     Run ONE full PPO training run for the given track/seed, writing all
@@ -206,6 +207,13 @@ def run_training(
 
     Guards against accidentally re-running an already-completed, identical
     run unless overwrite=True (see is_run_complete()).
+
+    `campaign` is a free-text label recorded in the manifest to distinguish
+    training campaigns that share this same implementation (e.g. the
+    original 200k campaign vs. the 400k replication campaign). It does NOT
+    affect training behavior -- output_dir alone determines where a run's
+    artifacts live, so campaigns are kept separate by using distinct
+    output_dir roots (see experiments/training_protocol.py).
     """
     if track not in ("direct", "kalman"):
         raise ValueError(f"Unknown track '{track}'; expected 'direct' or 'kalman'")
@@ -315,9 +323,15 @@ def run_training(
         "estimator": "kalman" if track == "kalman" else "measurement",
         "training_seed": seed,
         "training_timesteps": total_timesteps,
+        "campaign": campaign,
+        "training_budget_timesteps": total_timesteps,
+        "training_mode": "fresh_from_scratch",
+        "previous_200k_campaign_preserved": True,
         "validation_seed_offset": validation_seed_offset,
         "validation_episodes": validation_episodes,
         "validation_seed_range": [validation_seed_offset, validation_seed_offset + validation_episodes - 1],
+        "validation_seed_start": validation_seed_offset,
+        "validation_seed_end": validation_seed_offset + validation_episodes - 1,
         "ppo_hyperparameters": hyperparams,
         "checkpoint_freq": checkpoint_freq,
         "eval_freq": eval_freq,

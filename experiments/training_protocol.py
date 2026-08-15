@@ -83,20 +83,30 @@ def assert_not_final_test_seed(seed: int) -> None:
 # =============================================================================
 # OUTPUT DIRECTORY LAYOUT
 # =============================================================================
-# results/training/<track>/seed_<N>/ containing:
+# <campaign_root>/<track>/seed_<N>/ containing:
 #   best_model.zip, final_model.zip, checkpoints/, training_logs/, monitor/,
 #   training_manifest.json
+#
+# `campaign_root` is caller-supplied (not hardcoded here) so that separate
+# training campaigns can use separate, non-colliding output roots -- e.g.
+# the original 200k campaign uses results/training/, and the 400k
+# replication campaign (feature/ppo-400k-replication) uses a completely
+# separate results/training_400k/ root. See CAMPAIGN_200K_DIRNAME /
+# CAMPAIGN_400K_DIRNAME below.
 TRACK_DIRNAMES = {"direct": "direct", "kalman": "kalman"}
 
 
-def run_output_dir(results_root, track: str, seed: int):
+def run_output_dir(campaign_root, track: str, seed: int):
     """
     Return the Path to the run-specific output directory for a given track
-    and training seed: results/training/<track>/seed_<seed>/.
+    and training seed: <campaign_root>/<track>/seed_<seed>/.
 
     Args:
-        results_root: Path to the project's `results/` directory (or any
-            root under which `training/<track>/seed_<seed>/` should live).
+        campaign_root: Path under which `<track>/seed_<seed>/` should live
+            for a given training campaign (e.g. results/training for the
+            original 200k campaign, or results/training_400k for the 400k
+            replication campaign). NOT the top-level results/ directory
+            itself -- callers select the campaign-specific root explicitly.
         track: "direct" or "kalman".
         seed: Training seed (e.g. one of TRAINING_SEEDS).
     """
@@ -104,4 +114,16 @@ def run_output_dir(results_root, track: str, seed: int):
 
     if track not in TRACK_DIRNAMES:
         raise ValueError(f"Unknown track '{track}'; expected one of {list(TRACK_DIRNAMES)}")
-    return Path(results_root) / "training" / TRACK_DIRNAMES[track] / f"seed_{seed}"
+    return Path(campaign_root) / TRACK_DIRNAMES[track] / f"seed_{seed}"
+
+
+# =============================================================================
+# 400K REPLICATION CAMPAIGN (feature/ppo-400k-replication)
+# =============================================================================
+# A completely separate output root from the original 200k campaign so the
+# two campaigns can never collide or overwrite one another. The original
+# 200k campaign (results/training/) is an immutable record and must not be
+# touched by 400k campaign code.
+CAMPAIGN_200K_DIRNAME = "training"
+CAMPAIGN_400K_DIRNAME = "training_400k"
+CAMPAIGN_400K_TIMESTEPS = 400_000
