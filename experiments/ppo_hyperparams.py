@@ -31,9 +31,19 @@ GAE_LAMBDA = 0.95              # GAE lambda for advantage estimation
 # =============================================================================
 # EVALUATION / CHECKPOINTING (shared cadence and model-selection sample size)
 # =============================================================================
+# N_EVAL_EPISODES was increased from 20 -> 100 (2026-08, multi-seed training
+# protocol): best-model selection based on 20 Bernoulli success/failure
+# trials is too noisy (a true 60% success-rate policy has a binomial
+# standard error of ~11pp at n=20, vs ~5pp at n=100) to reliably pick the
+# best checkpoint across a 200k-timestep run. EVAL_FREQ was reduced from
+# 10_000 -> 25_000 so the larger per-evaluation episode budget does not
+# excessively inflate total wall-clock cost (100 episodes every 25k steps
+# gives 8 evaluations per 200k-timestep run, vs 20 evaluations previously).
+# This is a symmetric reliability improvement applied identically to BOTH
+# the Direct and Kalman tracks -- NOT controller-specific tuning.
 CHECKPOINT_FREQ = 50_000       # Save checkpoint every N timesteps
-EVAL_FREQ = 10_000             # Evaluate policy every N timesteps
-N_EVAL_EPISODES = 20           # Episodes per evaluation
+EVAL_FREQ = 25_000             # Evaluate policy every N timesteps
+N_EVAL_EPISODES = 100          # Episodes per evaluation (was 20)
 
 # =============================================================================
 # REPRODUCIBILITY
