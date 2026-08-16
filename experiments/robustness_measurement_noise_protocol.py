@@ -37,6 +37,10 @@ from uav_defend.config import EnvConfig
 from uav_defend.policies.registry import get_policy
 
 from experiments.final_experiment_protocol import PPO_TRAINING_SEEDS, frozen_model_path
+from experiments.estimator_stats import (
+    theoretical_raw_measurement_rmse as _theoretical_raw_measurement_rmse,
+    theoretical_raw_measurement_mean_error as _theoretical_raw_measurement_mean_error,
+)
 
 PROJECT_ROOT = Path(__file__).parent.parent
 
@@ -57,13 +61,11 @@ def measurement_std(variance: float) -> float:
     return math.sqrt(variance)
 
 
-def theoretical_raw_measurement_rmse(variance: float) -> float:
-    """
-    Theoretical 3-D vector RMSE of the raw noisy measurement (sensor
-    sanity-check helper, item 25): sqrt(3 * measurement_var), since
-    epsilon ~ N(0, measurement_var * I_3) has E[||epsilon||^2] = 3*variance.
-    """
-    return math.sqrt(3.0 * variance)
+# Re-exported from experiments.estimator_stats (single source of truth for
+# both theoretical benchmarks -- see that module for the corrected
+# mean-error-vs-RMSE derivations after the estimator-aggregation fix).
+theoretical_raw_measurement_rmse = _theoretical_raw_measurement_rmse
+theoretical_raw_measurement_mean_error = _theoretical_raw_measurement_mean_error
 
 
 # =============================================================================

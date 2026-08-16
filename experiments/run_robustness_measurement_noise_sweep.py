@@ -68,9 +68,17 @@ from experiments.robustness_measurement_noise_protocol import (
     MEASUREMENT_NOISE_SUMMARY_FILENAME,
     measurement_std,
     theoretical_raw_measurement_rmse,
+    theoretical_raw_measurement_mean_error,
     build_policy,
     build_sweep_env_config,
     assert_only_measurement_var_differs,
+)
+from experiments.estimator_stats import (
+    sample_weighted_mean_error,
+    sample_weighted_rmse,
+    episode_weighted_mean_error,
+    mean_episode_rmse,
+    equal_weight_across_seeds,
 )
 from experiments.measurement_noise_eval_utils import run_measurement_noise_episode, sha256_of_file
 from experiments.final_stats import (
@@ -425,30 +433,55 @@ def compute_pairwise_comparisons(df: pd.DataFrame, variances: list[float]) -> pd
 
 
 def compute_estimator_summary(df: pd.DataFrame, variances: list[float]) -> pd.DataFrame:
+    """
+    CORRECTED aggregation (fix/measurement-noise-estimator-aggregation):
+    reconstructs the true sample-weighted (pooled, timestep-correct) mean
+    error and RMSE from each episode's own (n_i, m_i, r_i), rather than
+    computing sqrt(mean(per_episode_mean_error^2)) -- see
+    experiments/estimator_stats.py for the full derivation.
+    """
     rows = []
     for variance in variances:
-        theoretical = theoretical_raw_measurement_rmse(variance)
+        theoretical_mean = theoretical_raw_measurement_mean_error(variance)
+        theoretical_rmse = theoretical_raw_measurement_rmse(variance)
         for method in PRIMARY_PAPER_METHODS:
             if method in SCRIPTED_METHODS:
-                sub = df[(df["measurement_var"] == variance) & (df["policy_instance"] == method)]
-                errs = sub["mean_position_estimation_error"].dropna()
-                rmse = float(np.sqrt(np.mean(np.square(errs)))) if len(errs) else float("nan")
+                sub = df[(df["measurement_var"] == variance) & (df["policy_instance"] == method)].dropna(
+                    subset=["mean_position_estimation_error", "position_estimation_rmse"]
+                )
+                n = sub["n_position_estimation_samples"].to_numpy(dtype=np.float64)
+                m = sub["mean_position_estimation_error"].to_numpy(dtype=np.float64)
+                r = sub["position_estimation_rmse"].to_numpy(dtype=np.float64)
                 rows.append({
                     "measurement_var": variance, "method": method,
-                    "mean_position_estimation_error": float(errs.mean()) if len(errs) else float("nan"),
-                    "position_estimation_rmse": rmse,
-                    "theoretical_raw_measurement_rmse": theoretical if method in ("greedy", "pn", "lead") else float("nan"),
+                    "mean_error_sample_weighted": sample_weighted_mean_error(n, m),
+                    "rmse_sample_weighted": sample_weighted_rmse(n, r),
+                    "mean_error_episode_weighted": episode_weighted_mean_error(m),
+                    "mean_episode_rmse": mean_episode_rmse(r),
+                    "theoretical_raw_measurement_mean_error": theoretical_mean if method in ("greedy", "pn", "lead") else float("nan"),
+                    "theoretical_raw_measurement_rmse": theoretical_rmse if method in ("greedy", "pn", "lead") else float("nan"),
                 })
             else:
-                m = _metric_matrix(df, variance, method, "mean_position_estimation_error")
-                with np.errstate(invalid="ignore"):
-                    per_seed_mean = np.nanmean(m, axis=1)
-                    per_seed_rmse = np.sqrt(np.nanmean(np.square(m), axis=1))
+                sub_method = df[(df["measurement_var"] == variance) & (df["paper_method"] == method)]
+                seed_rmse, seed_mean = [], []
+                for seed in (42, 43, 44):
+                    seed_sub = sub_method[sub_method["training_seed"] == seed].dropna(
+                        subset=["mean_position_estimation_error", "position_estimation_rmse"]
+                    )
+                    n = seed_sub["n_position_estimation_samples"].to_numpy(dtype=np.float64)
+                    m = seed_sub["mean_position_estimation_error"].to_numpy(dtype=np.float64)
+                    r = seed_sub["position_estimation_rmse"].to_numpy(dtype=np.float64)
+                    seed_mean.append(sample_weighted_mean_error(n, m))
+                    seed_rmse.append(sample_weighted_rmse(n, r))
+                mean_error, _ = equal_weight_across_seeds(np.array(seed_mean))
+                rmse, rmse_sd = equal_weight_across_seeds(np.array(seed_rmse))
                 rows.append({
                     "measurement_var": variance, "method": method,
-                    "mean_position_estimation_error": float(np.nanmean(per_seed_mean)),
-                    "position_estimation_rmse": float(np.nanmean(per_seed_rmse)),
-                    "theoretical_raw_measurement_rmse": theoretical if method == "ppo" else float("nan"),
+                    "mean_error_sample_weighted": mean_error,
+                    "rmse_sample_weighted": rmse,
+                    "train_seed_rmse_sd": rmse_sd,
+                    "theoretical_raw_measurement_mean_error": theoretical_mean if method == "ppo" else float("nan"),
+                    "theoretical_raw_measurement_rmse": theoretical_rmse if method == "ppo" else float("nan"),
                 })
     return pd.DataFrame(rows)
 
