@@ -287,7 +287,7 @@ def _ppo_method_row(df_method: pd.DataFrame) -> dict:
         return float(np.mean([d[col].mean() for d in seed_dfs]))
 
     return {
-        "n_eval_episodes": FINAL_NOMINAL_EPISODES,
+        "n_eval_episodes": success_matrix.shape[1],
         "n_training_seeds": 3,
         "success_rate": observed,
         "success_ci_low": ci_lo,
