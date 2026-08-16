@@ -302,8 +302,9 @@ def test_greedy_policy_vertical():
 
     info_up = {
         "defender_pos": np.array([0.0, 0.0, 5.0]),
-        "e_hat": np.array([0.0, 0.0, 15.0]),
+        "enemy_measurement": np.array([0.0, 0.0, 15.0]),
         "soldier_pos": np.array([0.0, 0.0, 0.0]),
+        "enemy_detected": True,
     }
     action_up = policy.act(None, info_up)
     assert action_up.shape == (3,)
@@ -312,8 +313,9 @@ def test_greedy_policy_vertical():
 
     info_down = {
         "defender_pos": np.array([0.0, 0.0, 15.0]),
-        "e_hat": np.array([0.0, 0.0, 5.0]),
+        "enemy_measurement": np.array([0.0, 0.0, 5.0]),
         "soldier_pos": np.array([0.0, 0.0, 0.0]),
+        "enemy_detected": True,
     }
     action_down = policy.act(None, info_down)
     assert action_down[2] < -0.9, action_down

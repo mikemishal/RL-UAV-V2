@@ -30,8 +30,13 @@ Design Decision — Stateless:
 Usage:
     This policy must be used with an environment configured for Kalman tracking:
         env = SoldierEnv(EnvConfig(use_kalman_tracking=True))
-    Using it with use_kalman_tracking=False will result in it receiving raw
-    noisy enemy measurements in e_hat (without Kalman smoothing).
+    It is registered as canonical name "kalman_greedy" and is intended ONLY
+    for the Kalman track -- the sanitized policy-info pipeline
+    (uav_defend.policies.sanitize.build_policy_info) supplies 'e_hat' only
+    for estimator_mode="kalman"; under "measurement" mode 'e_hat' is absent
+    and this policy would receive no target at all after detection. The
+    Direct/measurement-track baseline is GreedyInterceptPolicy (canonical
+    name "greedy"), which pursues 'enemy_measurement' instead.
 """
 
 from __future__ import annotations
