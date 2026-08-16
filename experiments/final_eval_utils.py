@@ -24,7 +24,13 @@ from uav_defend.policies.sanitize import build_policy_info, estimator_mode_for_e
 
 # Hard physical limits (EnvConfig defaults) -- a violation indicates a
 # genuine dynamics bug, not something to silently patch (see item 40).
-_LIMIT_TOLERANCE = 1e-6
+# Tolerance is sized for float32 environment state (defender_speed etc. are
+# computed as norms of float32 velocity vectors): float32 epsilon ~1.2e-7
+# relative to a magnitude ~18 gives rounding noise on the order of 1e-6, so
+# 1e-6 itself is too tight and produces false positives (e.g. 18.0000019
+# vs v_d=18.0). 1e-3 comfortably absorbs float32 rounding while still
+# catching genuine violations (which are orders of magnitude larger).
+_LIMIT_TOLERANCE = 1e-3
 
 
 class PhysicalLimitViolation(RuntimeError):
