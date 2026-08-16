@@ -119,12 +119,12 @@ def hierarchical_bootstrap_track(
     success_matrix = np.asarray(success_matrix, dtype=np.float64)
     n_seeds, n_eps = success_matrix.shape
     rng = np.random.default_rng(seed)
-    observed = float(success_matrix.mean(axis=1).mean())
+    observed = float(np.nanmean(success_matrix, axis=1).mean())
     means = np.empty(n_boot, dtype=np.float64)
     for i in range(n_boot):
         seed_idx = rng.integers(0, n_seeds, size=n_seeds)
         ep_idx = rng.integers(0, n_eps, size=n_eps)
-        means[i] = success_matrix[np.ix_(seed_idx, ep_idx)].mean()
+        means[i] = np.nanmean(success_matrix[np.ix_(seed_idx, ep_idx)])
     alpha = 1 - confidence
     lo, hi = np.percentile(means, [100 * alpha / 2, 100 * (1 - alpha / 2)])
     return observed, float(lo), float(hi)
@@ -157,13 +157,13 @@ def hierarchical_paired_bootstrap_vs_scripted(
     assert len(scripted_vec) == n_eps, "PPO and scripted comparator must share the same episode seeds"
 
     rng = np.random.default_rng(seed)
-    observed = float(ppo_matrix.mean(axis=1).mean() - scripted_vec.mean())
+    observed = float(np.nanmean(ppo_matrix, axis=1).mean() - np.nanmean(scripted_vec))
     diffs = np.empty(n_boot, dtype=np.float64)
     for i in range(n_boot):
         seed_idx = rng.integers(0, n_seeds, size=n_seeds)
         ep_idx = rng.integers(0, n_eps, size=n_eps)
-        ppo_sampled = ppo_matrix[np.ix_(seed_idx, ep_idx)].mean()
-        scripted_sampled = scripted_vec[ep_idx].mean()
+        ppo_sampled = np.nanmean(ppo_matrix[np.ix_(seed_idx, ep_idx)])
+        scripted_sampled = np.nanmean(scripted_vec[ep_idx])
         diffs[i] = ppo_sampled - scripted_sampled
     alpha = 1 - confidence
     lo, hi = np.percentile(diffs, [100 * alpha / 2, 100 * (1 - alpha / 2)])
@@ -200,7 +200,7 @@ def hierarchical_paired_bootstrap_matched_seeds(
     assert a_matrix.shape == b_matrix.shape, "matched-seed comparison requires identical shapes"
     n_seeds, n_eps = a_matrix.shape
 
-    per_seed_diffs = a_matrix.mean(axis=1) - b_matrix.mean(axis=1)
+    per_seed_diffs = np.nanmean(a_matrix, axis=1) - np.nanmean(b_matrix, axis=1)
     observed = float(per_seed_diffs.mean())
 
     rng = np.random.default_rng(seed)
@@ -208,8 +208,8 @@ def hierarchical_paired_bootstrap_matched_seeds(
     for i in range(n_boot):
         seed_idx = rng.integers(0, n_seeds, size=n_seeds)  # same labels for both tracks
         ep_idx = rng.integers(0, n_eps, size=n_eps)
-        a_sampled = a_matrix[np.ix_(seed_idx, ep_idx)].mean()
-        b_sampled = b_matrix[np.ix_(seed_idx, ep_idx)].mean()
+        a_sampled = np.nanmean(a_matrix[np.ix_(seed_idx, ep_idx)])
+        b_sampled = np.nanmean(b_matrix[np.ix_(seed_idx, ep_idx)])
         diffs[i] = a_sampled - b_sampled
     alpha = 1 - confidence
     lo, hi = np.percentile(diffs, [100 * alpha / 2, 100 * (1 - alpha / 2)])
