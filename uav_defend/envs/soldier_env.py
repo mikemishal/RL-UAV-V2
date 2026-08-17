@@ -399,7 +399,12 @@ class SoldierEnv(gym.Env):
         # Store for reward shaping
         self._prev_defender_enemy_dist = initial_defender_enemy_dist
         
-        return self._get_obs(), self._get_info("ongoing", initial_enemy_soldier_dist, initial_defender_enemy_dist)
+        return self._get_obs(), self._get_info(
+            "ongoing", initial_enemy_soldier_dist, initial_defender_enemy_dist,
+            defender_standby=self.config.defender_standby_until_detection,
+            controller_action_executed=False,
+            just_detected=False,
+        )
     
     def _spawn_enemy_at_edge(self) -> np.ndarray:
         """
@@ -463,25 +468,90 @@ class SoldierEnv(gym.Env):
         Note:
             The environment does NOT contain any policy logic.
             All defender control comes from the external action.
+
+        Pre-detection standby semantics (config.defender_standby_until_detection,
+        REVISED canonical default=True):
+            Let detected_at_step_start = self._enemy_detected BEFORE this
+            step's mutations. The discrete-time sequence is:
+                A. Move the soldier (existing stochastic random walk).
+                B. If standby AND NOT detected_at_step_start: synchronize the
+                   defender exactly onto the (post-move) soldier position
+                   with zero velocity -- the supplied `action` has NO effect
+                   this step.
+                C. Move the hostile (existing pursuit+weave+evasion model);
+                   evasion sees the CURRENT (possibly just-synced) defender
+                   position.
+                D. Update detection using the resulting current positions.
+                E. Execute the supplied `action` through the defender's
+                   constrained dynamics ONLY IF detected_at_step_start was
+                   True. If detected_at_step_start was False -- including
+                   the very transition step where detection newly becomes
+                   True in D -- the action is NOT executed this step.
+            Consequently: the first observation with detected_flag=1 is
+            returned with the defender still exactly co-located with the
+            soldier (zero velocity); the controller's first EXECUTED
+            interception action occurs on the NEXT call to step() (whose
+            detected_at_step_start is now True). This gives every
+            controller (Greedy, PN, Lead, PPO, PPO-Kalman, ...) an
+            identical, action-independent pre-detection state history.
+            When defender_standby_until_detection=False (legacy mode), the
+            supplied action is applied every step from the start of the
+            episode, exactly as in the original (pre-revision) environment.
         """
         assert self._soldier_pos is not None, "Call reset() before step()"
-        
-        # Move soldier stochastically (uncontrolled)
+
+        standby_mode = self.config.defender_standby_until_detection
+        detected_at_step_start = self._enemy_detected
+
+        # A. Move soldier stochastically (uncontrolled) -- unchanged model.
         self._move_soldier()
-        
-        # Move enemy with weaving pursuit toward soldier (uncontrolled)
+
+        # B. Standby hand-off: while undetected, hold the defender exactly
+        # co-located with the (just-moved) soldier, ignoring the supplied
+        # action entirely. Must happen BEFORE the hostile moves so that
+        # reactive evasion (which reads self._defender_pos) sees the
+        # CURRENT defender location during standby.
+        if standby_mode and not detected_at_step_start:
+            self._defender_pos = self._soldier_pos.copy()
+            self._defender_vel = np.zeros(3, dtype=np.float32)
+            self._defender_dynamics_info = {
+                "accel_used": 0.0,
+                "turn_rate_used_deg": 0.0,
+                "accel_saturated": False,
+                "turn_saturated": False,
+                "climb_saturated": False,
+            }
+
+        # C. Move enemy with weaving pursuit + reactive evasion toward soldier (uncontrolled)
         self._move_enemy()
-        
-        # Update enemy detection state and Kalman tracking estimates.
+
+        # D. Update enemy detection state and Kalman tracking estimates.
         # Called here, in step(), so that it is a first-class environment
         # behavior available to ANY controller — not tied to RL logic.
         # Uses the positions after this step's entity movements but before
         # the defender displacement, matching pre-refactor semantics.
         self._update_detection()
-        
-        # Move defender based on external action (controlled via step())
-        self._move_defender(action)
-        
+
+        # just_detected: True only on the transition where detection changes
+        # False -> True during this very step (computed from D's result).
+        just_detected = (not detected_at_step_start) and self._enemy_detected
+
+        # E. Defender action: execute the supplied action through the
+        # existing constrained dynamics ONLY when the controller was already
+        # in control at the START of this step (detected_at_step_start).
+        # In legacy mode (standby_mode=False), the action is always executed
+        # -- the original, pre-revision behavior.
+        if standby_mode:
+            controller_action_executed = bool(detected_at_step_start)
+            if controller_action_executed:
+                self._move_defender(action)
+            # else: standby / detection-transition step -- defender remains
+            # exactly at the position set in step B (co-located with the
+            # soldier), with zero velocity; the supplied action is discarded.
+        else:
+            self._move_defender(action)
+            controller_action_executed = True
+
         self._step_count += 1
         
         # Calculate distances
@@ -552,13 +622,19 @@ class SoldierEnv(gym.Env):
             # + proximity term. This is identical for Direct and Kalman tracks
             # -- neither track receives a Kalman-only tracking-error reward
             # (tracking error remains an EVALUATION metric only, see
-            # info["tracking_error"]).
+            # info["tracking_error"]). During standby, action-independence
+            # follows automatically: dist_de/dist_es evolve purely from the
+            # soldier/hostile motion models, so this reward term cannot be
+            # influenced by the (discarded) supplied action.
         
         # Update previous distance for next step
         self._prev_defender_enemy_dist = defender_enemy_dist
         
         return self._get_obs(), reward, terminated, truncated, self._get_info(
-            outcome, enemy_soldier_dist, defender_enemy_dist
+            outcome, enemy_soldier_dist, defender_enemy_dist,
+            defender_standby=(standby_mode and not controller_action_executed),
+            controller_action_executed=controller_action_executed,
+            just_detected=just_detected,
         )
     
     def _advance_velocity(
@@ -1281,7 +1357,8 @@ class SoldierEnv(gym.Env):
         ]).astype(np.float32)
     
     def _get_info(self, outcome: str = "ongoing", enemy_soldier_dist: float = 0.0, 
-                  defender_enemy_dist: float = 0.0) -> dict:
+                  defender_enemy_dist: float = 0.0, defender_standby: bool = False,
+                  controller_action_executed: bool = False, just_detected: bool = False) -> dict:
         """Get additional info dict.
         
         Args:
@@ -1289,6 +1366,14 @@ class SoldierEnv(gym.Env):
                     "unsafe_intercept", or "timeout".
             enemy_soldier_dist: Distance between enemy and soldier.
             defender_enemy_dist: Distance between defender and enemy.
+            defender_standby: True if THIS transition used pre-detection
+                standby behavior (defender held co-located with the
+                soldier, supplied action discarded) -- see step().
+            controller_action_executed: True iff the supplied action was
+                actually applied to the defender's constrained dynamics
+                this transition (always True in legacy/non-standby mode).
+            just_detected: True only on the transition where
+                self._enemy_detected changed False -> True this step.
         
         Dynamics diagnostic fields (units: velocity in m/s, acceleration in
         m/s^2, turn rate in deg/s) are computed by _advance_velocity() during
@@ -1364,6 +1449,10 @@ class SoldierEnv(gym.Env):
             "e_hat": self._e_hat.copy() if self._e_hat is not None else None,
             "v_hat": self._v_hat.copy() if self._v_hat is not None else None,
             "tracking_error": tracking_error,
+            # Pre-detection standby diagnostics (see step() docstring).
+            "defender_standby": defender_standby,
+            "controller_action_executed": controller_action_executed,
+            "just_detected": just_detected,
         }
     
     def render(self) -> np.ndarray | None:

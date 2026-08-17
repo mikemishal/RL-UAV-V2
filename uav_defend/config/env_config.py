@@ -107,6 +107,32 @@ class EnvConfig:
     intercept_radius: float = 2.5   # Distance at which defender neutralizes/intercepts the enemy
     threat_radius: float = 2.0      # Enemy reaches soldier and causes mission failure
     unsafe_intercept_radius: float = 3.5  # If intercept occurs this close to soldier, it's a failure
+
+    # =========================================================================
+    # Pre-Detection Engagement Semantics (revised canonical scenario)
+    # - The defender begins co-located with the protected soldier
+    #   (see SoldierEnv.reset()). Before hostile detection, the intended
+    #   engagement scenario is a stationary standby/escort posture: the
+    #   defender has not yet launched to intercept anything.
+    # - defender_standby_until_detection=True (the REVISED canonical
+    #   default): while the hostile is undetected, the defender is held
+    #   EXACTLY co-located with the soldier (position and velocity), and the
+    #   supplied controller action has NO effect. Control effectively hands
+    #   off to the selected interception controller beginning with the
+    #   FIRST step whose action is applied after detection already held true
+    #   at the start of that step (see SoldierEnv.step() for the exact
+    #   discrete-time handoff). This applies identically to every
+    #   controller (Greedy, PN, Lead, PPO, PPO-Kalman, ...).
+    # - defender_standby_until_detection=False (LEGACY mode, retained only
+    #   for historical reproducibility / diagnostics, e.g.
+    #   experiments/policy_wrappers.py's EscortUntilDetectionPolicy-based
+    #   acquisition-ablation study): the supplied action is applied to the
+    #   defender every step from the very start of the episode, exactly as
+    #   in the original (pre-revision) environment behavior.
+    # - See docs/revised_predetection_protocol.md for the full rationale.
+    # =========================================================================
+    defender_standby_until_detection: bool = True
+
     
     # =========================================================================
     # Kalman Tracking and Sensing Noise Configuration

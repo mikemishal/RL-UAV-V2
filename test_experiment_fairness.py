@@ -98,9 +98,27 @@ def _fixed_action(i: int) -> np.ndarray:
 def test_rng_streams_independent_of_detection_radius():
     """
     Changing detection_radius changes WHEN (and whether) the sensor RNG
-    stream is consumed. The TRUE soldier/defender/enemy trajectory must be
-    completely unaffected, proving the sensor stream is independent from
-    the spawn/soldier/enemy-motion streams.
+    stream is consumed. The soldier's TRUE trajectory -- driven only by the
+    dedicated soldier-walk RNG stream, never by detection state or defender
+    behavior -- must be completely unaffected, proving the sensor stream is
+    independent from the spawn/soldier/enemy-motion streams.
+
+    NOTE (revised pre-detection standby semantics, see
+    docs/revised_predetection_protocol.md): under the canonical default
+    config.defender_standby_until_detection=True, defender_pos is
+    INTENTIONALLY co-located with soldier_pos until detection and only
+    diverges once the controller takes over, so defender_pos (and, through
+    the hostile's reactive-evasion coupling to defender_pos, enemy_pos too)
+    legitimately depends on detection timing here -- that is expected
+    physical behavior, NOT an RNG-stream leak, so neither is asserted
+    invariant in THIS test. See:
+      - test_enemy_rng_stream_independent_of_detection_radius_no_evasion()
+        below, which isolates and re-confirms the enemy-motion RNG stream's
+        independence by disabling the evasion coupling.
+      - test_legacy_mode_defender_pos_independent_of_detection_radius()
+        below, which restores the full original invariant (including
+        defender_pos and enemy_pos) under legacy (standby=False) mode,
+        where defender_pos truly is detection-independent.
     """
     config_a = EnvConfig(detection_radius=1.0)
     config_b = EnvConfig(detection_radius=49.0)
@@ -109,11 +127,55 @@ def test_rng_streams_independent_of_detection_radius():
     assert len(trace_a) == len(trace_b) and len(trace_a) > 20
     for (_, _, _, info_a), (_, _, _, info_b) in zip(trace_a, trace_b):
         assert np.allclose(info_a["soldier_pos"], info_b["soldier_pos"], atol=1e-6)
-        assert np.allclose(info_a["defender_pos"], info_b["defender_pos"], atol=1e-6)
-        assert np.allclose(info_a["enemy_pos"], info_b["enemy_pos"], atol=1e-6)
 
     # Sanity: the two configs must actually have produced DIFFERENT
     # detection timing, otherwise this test isn't exercising anything.
+    detected_a = [info["enemy_detected"] for _, _, _, info in trace_a]
+    detected_b = [info["enemy_detected"] for _, _, _, info in trace_b]
+    assert detected_a != detected_b, "test scenario failed to vary detection timing"
+
+
+def test_enemy_rng_stream_independent_of_detection_radius_no_evasion():
+    """
+    With hostile reactive evasion disabled (removing its legitimate coupling
+    to defender_pos), enemy_pos depends only on soldier_pos (detection-
+    independent) and the dedicated enemy-motion RNG stream -- so it must be
+    fully invariant to detection_radius, confirming the enemy-motion RNG
+    stream itself is unperturbed by sensor-RNG consumption timing even
+    under the canonical standby default.
+    """
+    config_a = EnvConfig(detection_radius=1.0, enemy_evasion_enabled=False)
+    config_b = EnvConfig(detection_radius=49.0, enemy_evasion_enabled=False)
+    trace_a, trace_b = _matched_rollout(config_a, config_b, seed=123, n_steps=80, action_fn=_fixed_action)
+
+    assert len(trace_a) == len(trace_b) and len(trace_a) > 20
+    for (_, _, _, info_a), (_, _, _, info_b) in zip(trace_a, trace_b):
+        assert np.allclose(info_a["soldier_pos"], info_b["soldier_pos"], atol=1e-6)
+        assert np.allclose(info_a["enemy_pos"], info_b["enemy_pos"], atol=1e-6)
+
+    detected_a = [info["enemy_detected"] for _, _, _, info in trace_a]
+    detected_b = [info["enemy_detected"] for _, _, _, info in trace_b]
+    assert detected_a != detected_b, "test scenario failed to vary detection timing"
+
+
+def test_legacy_mode_defender_pos_independent_of_detection_radius():
+    """
+    Legacy mode (defender_standby_until_detection=False) preserves the
+    ORIGINAL pre-revision property this test used to check under the
+    canonical default: with a fixed, purely-exogenous action sequence, the
+    TRUE defender trajectory is unaffected by detection_radius (the action
+    is executed identically regardless of detection state).
+    """
+    config_a = EnvConfig(detection_radius=1.0, defender_standby_until_detection=False)
+    config_b = EnvConfig(detection_radius=49.0, defender_standby_until_detection=False)
+    trace_a, trace_b = _matched_rollout(config_a, config_b, seed=123, n_steps=80, action_fn=_fixed_action)
+
+    assert len(trace_a) == len(trace_b) and len(trace_a) > 20
+    for (_, _, _, info_a), (_, _, _, info_b) in zip(trace_a, trace_b):
+        assert np.allclose(info_a["soldier_pos"], info_b["soldier_pos"], atol=1e-6)
+        assert np.allclose(info_a["defender_pos"], info_b["defender_pos"], atol=1e-6)
+        assert np.allclose(info_a["enemy_pos"], info_b["enemy_pos"], atol=1e-6)
+
     detected_a = [info["enemy_detected"] for _, _, _, info in trace_a]
     detected_b = [info["enemy_detected"] for _, _, _, info in trace_b]
     assert detected_a != detected_b, "test scenario failed to vary detection timing"
@@ -378,6 +440,8 @@ def test_estimator_mode_for_env():
 def main() -> int:
     tests = [
         ("A. RNG streams independent of detection_radius", test_rng_streams_independent_of_detection_radius),
+        ("A2. Enemy-motion RNG independent of detection_radius (no evasion)", test_enemy_rng_stream_independent_of_detection_radius_no_evasion),
+        ("A3. Legacy-mode defender_pos independent of detection_radius", test_legacy_mode_defender_pos_independent_of_detection_radius),
         ("B/C/D. Direct/Kalman true-trajectory, sensor, reward equivalence", test_direct_kalman_equivalence),
         ("E. Observation semantic parity", test_observation_semantic_parity),
         ("F. No ground-truth leakage (all scripted controllers)", test_no_ground_truth_leakage_all_controllers),

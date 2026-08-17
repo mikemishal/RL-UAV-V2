@@ -184,6 +184,13 @@ def test_terminal_reward_intercepted():
     env.reset(seed=11)
     _freeze_soldier_and_enemy(env)
 
+    # This test directly constructs a POST-detection scenario (defender
+    # already on top of the enemy), so mark detection already true --
+    # otherwise SoldierEnv.step()'s pre-detection standby sync would
+    # overwrite the manually-set defender_pos back onto the soldier before
+    # the intercept check (see docs/revised_predetection_protocol.md).
+    env._enemy_detected = True
+
     # Force a safe intercept: defender on top of the enemy, soldier far away.
     env._soldier_pos = np.array([config.L - 1.0, config.L - 1.0, 0.0], dtype=np.float32)
     env._enemy_pos = np.array([-config.L + 1.0, -config.L + 1.0, 10.0], dtype=np.float32)
@@ -227,6 +234,13 @@ def test_terminal_reward_unsafe_intercept():
     assert config.threat_radius < config.unsafe_intercept_radius, (
         "test assumes threat_radius < unsafe_intercept_radius"
     )
+    # This test directly constructs a POST-detection scenario (defender
+    # already on top of the enemy), so mark detection already true --
+    # otherwise SoldierEnv.step()'s pre-detection standby sync would
+    # overwrite the manually-set defender_pos back onto the soldier before
+    # the intercept check (see docs/revised_predetection_protocol.md).
+    env._enemy_detected = True
+
     mid_r = (config.threat_radius + config.unsafe_intercept_radius) / 2.0
     env._soldier_pos = np.array([0.0, 0.0, 0.0], dtype=np.float32)
     env._enemy_pos = np.array([mid_r, 0.0, 0.0], dtype=np.float32)
