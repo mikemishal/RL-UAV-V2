@@ -135,7 +135,7 @@ def check_output_dir_no_legacy_publication_models(output_dir: Path) -> None:
         _ok(f"output_dir {output_dir} does not yet exist (clean start)")
         return
     found_publication_run = False
-    for manifest_path in output_dir.rglob("training_manifest.json"):
+    for manifest_path in output_dir.rglob("run_manifest.json"):
         try:
             import json
             manifest = json.loads(manifest_path.read_text())

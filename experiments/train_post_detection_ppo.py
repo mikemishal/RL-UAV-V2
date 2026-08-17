@@ -229,10 +229,20 @@ def main() -> int:
     best_timestep = next(
         (e["timesteps"] for e in eval_history if e["success_rate"] == best_success_rate), None,
     )
+    # Second-best checkpoint (by success rate; earliest among ties, excluding the best entry itself).
+    remaining = [e for e in eval_history if e["timesteps"] != best_timestep]
+    second_best = max(remaining, key=lambda e: (e["success_rate"], -e["timesteps"])) if remaining else None
 
     import stable_baselines3
     import torch
     import gymnasium
+    from experiments.final_eval_utils import sha256_of_file
+
+    best_model_path = output_dir / "best_model.zip"
+    model_hashes = {
+        "final_model.zip": sha256_of_file(final_model_path) if final_model_path.exists() else None,
+        "best_model.zip": sha256_of_file(best_model_path) if best_model_path.exists() else None,
+    }
 
     manifest = {
         "status": "completed",
@@ -243,6 +253,8 @@ def main() -> int:
         "track": args.track,
         "estimator": "kalman" if args.track == "kalman" else "measurement",
         "training_seed": args.training_seed,
+        "requested_timesteps": args.total_timesteps,
+        "actual_model_num_timesteps": int(model.num_timesteps),
         "training_timesteps": args.total_timesteps,
         "campaign": CAMPAIGN_DIRNAME,
         "timestep_definition": POST_DETECTION_TIMESTEP_DEFINITION,
@@ -266,10 +278,20 @@ def main() -> int:
         "network_architecture": arch_info,
         "best_validation_success_rate": best_success_rate,
         "best_checkpoint_timestep": best_timestep,
+        "second_best_checkpoint_timestep": second_best["timesteps"] if second_best else None,
+        "second_best_validation_success_rate": second_best["success_rate"] if second_best else None,
         "final_validation_success_rate": eval_history[-1]["success_rate"] if eval_history else None,
         "validation_history": eval_history,
+        "model_hashes_sha256": model_hashes,
     }
-    (output_dir / "training_manifest.json").write_text(json.dumps(manifest, indent=2, default=str))
+    (output_dir / "run_manifest.json").write_text(json.dumps(manifest, indent=2, default=str))
+    if eval_history:
+        pd_module = __import__("pandas")
+        pd_module.DataFrame(eval_history).to_csv(output_dir / "validation_history.csv", index=False)
+    (output_dir / "COMPLETED.txt").write_text(
+        f"Run completed at {end_time.isoformat()}. track={args.track} training_seed={args.training_seed} "
+        f"requested_timesteps={args.total_timesteps} actual_model_num_timesteps={model.num_timesteps}\n"
+    )
     if args.smoke_test:
         (output_dir / "SMOKE_TEST_NOT_PAPER_MODEL.txt").write_text(
             "SMOKE TEST -- NOT A PAPER MODEL.\n"
@@ -280,7 +302,7 @@ def main() -> int:
         )
 
     print(f"\nTraining complete. best_validation_success_rate={best_success_rate}")
-    print(f"Manifest written to {output_dir / 'training_manifest.json'}")
+    print(f"Manifest written to {output_dir / 'run_manifest.json'}")
 
     train_env.close()
     return 0
