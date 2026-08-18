@@ -124,11 +124,25 @@ def assert_seed_in_hostile_evasion_range(seed: int) -> None:
         raise ValueError(f"Seed {seed} is outside the locked hostile-evasion range {HOSTILE_EVASION_SEED_START}..{HOSTILE_EVASION_SEED_END}")
 
 
+def assert_seed_in_maneuverability_range(seed: int) -> None:
+    """Positive-membership check used for the REAL production maneuverability
+    run: seed must fall exactly within the range being deliberately opened.
+    Unlike assert_seed_not_yet_opened (a blanket guard used by dev/smoke
+    tasks to keep OFF every reserved range), this function is what actually
+    authorizes use of the maneuverability range itself."""
+    if not (MANEUVERABILITY_SEED_START <= seed <= MANEUVERABILITY_SEED_END):
+        raise ValueError(f"Seed {seed} is outside the locked maneuverability range {MANEUVERABILITY_SEED_START}..{MANEUVERABILITY_SEED_END}")
+
+
 def assert_seed_not_yet_opened(seed: int) -> None:
     """Raises if `seed` falls in ANY not-yet-opened expanded-robustness
-    range (all of 66000-99999) -- guards implementation/smoke-test tasks
-    against accidentally executing a reserved range."""
+    range -- guards implementation/smoke-test tasks against accidentally
+    executing a reserved range. hostile_evasion (66000-66999) is EXCLUDED
+    from this dict (it is now permanently frozen/consumed, not "not yet
+    opened"); it is instead guarded via assert_disjoint_from_all_prior_ranges."""
     for _name, (lo, hi) in SWEEP_SEED_RANGES.items():
+        if _name == "hostile_evasion":
+            continue
         if lo <= seed <= hi:
             raise ValueError(f"Seed {seed} is in the RESERVED (not-yet-opened) {_name} robustness range.")
     if FUTURE_UNUSED_SEED_START <= seed <= FUTURE_UNUSED_SEED_END:
@@ -136,14 +150,16 @@ def assert_seed_not_yet_opened(seed: int) -> None:
 
 
 def assert_disjoint_from_all_prior_ranges(seed: int) -> None:
-    """Defense-in-depth: seed must not fall in any PRIOR (already-opened or
-    training-namespace) range either."""
+    """Defense-in-depth: seed must not fall in any PRIOR (already-opened,
+    permanently-frozen, or training-namespace) range either."""
     if RESIDUAL_VALIDATION_RANGE[0] <= seed <= RESIDUAL_VALIDATION_RANGE[1]:
         raise ValueError(f"Seed {seed} collides with the residual validation range.")
     if RESIDUAL_DIAGNOSTIC_RANGE[0] <= seed <= RESIDUAL_DIAGNOSTIC_RANGE[1]:
         raise ValueError(f"Seed {seed} collides with the residual diagnostic range.")
     if EXPANDED_FINAL_RANGE[0] <= seed <= EXPANDED_FINAL_RANGE[1]:
         raise ValueError(f"Seed {seed} collides with the expanded final range.")
+    if HOSTILE_EVASION_SEED_START <= seed <= HOSTILE_EVASION_SEED_END:
+        raise ValueError(f"Seed {seed} collides with the permanently-frozen hostile-evasion range; must not reuse or rerun.")
     for root, (lo, hi) in LR_PPO_TRAINING_NAMESPACES.items():
         if lo <= seed <= hi:
             raise ValueError(f"Seed {seed} collides with LR-PPO-{root}'s training-episode namespace.")

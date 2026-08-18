@@ -40,6 +40,7 @@ from experiments.expanded_robustness_protocol import (
     build_measurement_noise_config, build_mobility_config, build_detection_radius_config,
     assert_only_fields_differ, assert_process_var_fixed,
     assert_seed_not_yet_opened, assert_disjoint_from_all_prior_ranges,
+    assert_seed_in_hostile_evasion_range, assert_seed_in_maneuverability_range,
 )
 from experiments.run_lead_residual_diagnostic import verify_model_hashes
 from experiments.run_post_detection_diagnostic import audit_ground_truth_leakage
@@ -88,13 +89,23 @@ def test_exact_episode_counts():
 
 
 def test_assert_helpers_reject_all_reserved_and_future_seeds():
-    for lo, hi in _ALL_ROBUSTNESS_RANGES + [(FUTURE_UNUSED_SEED_START, FUTURE_UNUSED_SEED_END)]:
+    # hostile_evasion is now permanently frozen/consumed (not "not yet opened"),
+    # so it is deliberately EXCLUDED from assert_seed_not_yet_opened's blanket
+    # check; it is guarded instead by assert_disjoint_from_all_prior_ranges below.
+    still_not_yet_opened = [r for r in _ALL_ROBUSTNESS_RANGES if r != (HOSTILE_EVASION_SEED_START, HOSTILE_EVASION_SEED_END)]
+    for lo, hi in still_not_yet_opened + [(FUTURE_UNUSED_SEED_START, FUTURE_UNUSED_SEED_END)]:
         for s in (lo, (lo + hi) // 2, hi):
             try:
                 assert_seed_not_yet_opened(s)
                 assert False, f"expected rejection for reserved/future seed {s}"
             except ValueError:
                 pass
+    for s in (HOSTILE_EVASION_SEED_START, (HOSTILE_EVASION_SEED_START + HOSTILE_EVASION_SEED_END) // 2, HOSTILE_EVASION_SEED_END):
+        try:
+            assert_disjoint_from_all_prior_ranges(s)
+            assert False, f"expected rejection for frozen hostile_evasion seed {s}"
+        except ValueError:
+            pass
 
 
 def test_assert_helpers_reject_prior_namespace_seeds():
@@ -116,6 +127,33 @@ def test_assert_helpers_accept_dev_seeds():
     for s in _DEV_SEEDS:
         assert_seed_not_yet_opened(s) is None
         assert_disjoint_from_all_prior_ranges(s) is None
+
+
+def test_assert_seed_in_hostile_evasion_range():
+    for s in (HOSTILE_EVASION_SEED_START, HOSTILE_EVASION_SEED_END):
+        assert assert_seed_in_hostile_evasion_range(s) is None
+    for s in (HOSTILE_EVASION_SEED_START - 1, HOSTILE_EVASION_SEED_END + 1):
+        try:
+            assert_seed_in_hostile_evasion_range(s)
+            assert False, f"expected rejection for out-of-range seed {s}"
+        except ValueError:
+            pass
+
+
+def test_assert_seed_in_maneuverability_range():
+    # Explicit boundary cases per protocol: 66999 reject, 67000 accept, 67999 accept, 68000 reject.
+    for s in (MANEUVERABILITY_SEED_START - 1, MANEUVERABILITY_SEED_END + 1):
+        try:
+            assert_seed_in_maneuverability_range(s)
+            assert False, f"expected rejection for out-of-range seed {s}"
+        except ValueError:
+            pass
+    for s in (MANEUVERABILITY_SEED_START, MANEUVERABILITY_SEED_END):
+        assert assert_seed_in_maneuverability_range(s) is None
+    assert MANEUVERABILITY_SEED_START - 1 == 66_999
+    assert MANEUVERABILITY_SEED_START == 67_000
+    assert MANEUVERABILITY_SEED_END == 67_999
+    assert MANEUVERABILITY_SEED_END + 1 == 68_000
 
 
 def test_hostile_evasion_grid_exact():
