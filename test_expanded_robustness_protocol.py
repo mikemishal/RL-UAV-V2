@@ -41,6 +41,7 @@ from experiments.expanded_robustness_protocol import (
     assert_only_fields_differ, assert_process_var_fixed,
     assert_seed_not_yet_opened, assert_disjoint_from_all_prior_ranges,
     assert_seed_in_hostile_evasion_range, assert_seed_in_maneuverability_range,
+    assert_seed_in_measurement_noise_range,
 )
 from experiments.run_lead_residual_diagnostic import verify_model_hashes
 from experiments.run_post_detection_diagnostic import audit_ground_truth_leakage
@@ -89,10 +90,15 @@ def test_exact_episode_counts():
 
 
 def test_assert_helpers_reject_all_reserved_and_future_seeds():
-    # hostile_evasion is now permanently frozen/consumed (not "not yet opened"),
-    # so it is deliberately EXCLUDED from assert_seed_not_yet_opened's blanket
-    # check; it is guarded instead by assert_disjoint_from_all_prior_ranges below.
-    still_not_yet_opened = [r for r in _ALL_ROBUSTNESS_RANGES if r != (HOSTILE_EVASION_SEED_START, HOSTILE_EVASION_SEED_END)]
+    # hostile_evasion and maneuverability are now permanently frozen/consumed
+    # (not "not yet opened"), so both are deliberately EXCLUDED from
+    # assert_seed_not_yet_opened's blanket check; they are guarded instead by
+    # assert_disjoint_from_all_prior_ranges below.
+    _frozen_consumed_ranges = [
+        (HOSTILE_EVASION_SEED_START, HOSTILE_EVASION_SEED_END),
+        (MANEUVERABILITY_SEED_START, MANEUVERABILITY_SEED_END),
+    ]
+    still_not_yet_opened = [r for r in _ALL_ROBUSTNESS_RANGES if r not in _frozen_consumed_ranges]
     for lo, hi in still_not_yet_opened + [(FUTURE_UNUSED_SEED_START, FUTURE_UNUSED_SEED_END)]:
         for s in (lo, (lo + hi) // 2, hi):
             try:
@@ -100,12 +106,13 @@ def test_assert_helpers_reject_all_reserved_and_future_seeds():
                 assert False, f"expected rejection for reserved/future seed {s}"
             except ValueError:
                 pass
-    for s in (HOSTILE_EVASION_SEED_START, (HOSTILE_EVASION_SEED_START + HOSTILE_EVASION_SEED_END) // 2, HOSTILE_EVASION_SEED_END):
-        try:
-            assert_disjoint_from_all_prior_ranges(s)
-            assert False, f"expected rejection for frozen hostile_evasion seed {s}"
-        except ValueError:
-            pass
+    for lo, hi in _frozen_consumed_ranges:
+        for s in (lo, (lo + hi) // 2, hi):
+            try:
+                assert_disjoint_from_all_prior_ranges(s)
+                assert False, f"expected rejection for frozen/consumed seed {s}"
+            except ValueError:
+                pass
 
 
 def test_assert_helpers_reject_prior_namespace_seeds():
@@ -154,6 +161,22 @@ def test_assert_seed_in_maneuverability_range():
     assert MANEUVERABILITY_SEED_START == 67_000
     assert MANEUVERABILITY_SEED_END == 67_999
     assert MANEUVERABILITY_SEED_END + 1 == 68_000
+
+
+def test_assert_seed_in_measurement_noise_range():
+    # Explicit boundary cases per protocol: 67999 reject, 68000 accept, 68999 accept, 69000 reject.
+    for s in (MEASUREMENT_NOISE_SEED_START - 1, MEASUREMENT_NOISE_SEED_END + 1):
+        try:
+            assert_seed_in_measurement_noise_range(s)
+            assert False, f"expected rejection for out-of-range seed {s}"
+        except ValueError:
+            pass
+    for s in (MEASUREMENT_NOISE_SEED_START, MEASUREMENT_NOISE_SEED_END):
+        assert assert_seed_in_measurement_noise_range(s) is None
+    assert MEASUREMENT_NOISE_SEED_START - 1 == 67_999
+    assert MEASUREMENT_NOISE_SEED_START == 68_000
+    assert MEASUREMENT_NOISE_SEED_END == 68_999
+    assert MEASUREMENT_NOISE_SEED_END + 1 == 69_000
 
 
 def test_hostile_evasion_grid_exact():
