@@ -214,3 +214,56 @@ def hierarchical_paired_bootstrap_matched_seeds(
     alpha = 1 - confidence
     lo, hi = np.percentile(diffs, [100 * alpha / 2, 100 * (1 - alpha / 2)])
     return observed, float(lo), float(hi), per_seed_diffs
+
+
+def hierarchical_bootstrap_independent_families(
+    a_matrix: np.ndarray,
+    b_matrix: np.ndarray,
+    n_boot: int,
+    seed: int,
+    confidence: float = 0.95,
+) -> tuple[float, float, float]:
+    """
+    Hierarchical bootstrap comparing two multi-training-seed families whose
+    training roots are NOT matched/comparable (e.g. LR-PPO roots 55/56/57 vs
+    standalone PPO roots 45/46/47 -- there is no meaningful pairing between
+    the two families' training roots, unlike hierarchical_paired_bootstrap_
+    matched_seeds' same-label design). Each family's training-root rows are
+    resampled INDEPENDENTLY; the SAME resampled environment-seed indices are
+    applied to BOTH families (common random numbers preserved at the
+    environment-scenario level only).
+
+    a_matrix: shape (n_a_roots, n_episodes).
+    b_matrix: shape (n_b_roots, n_episodes), SAME episode-seed column order
+        as a_matrix (n_a_roots and n_b_roots may differ).
+
+    Each replicate: (1) resample a's training-root rows with replacement,
+    (2) INDEPENDENTLY resample b's training-root rows with replacement,
+    (3) resample episode indices ONCE with replacement (shared by both),
+    (4) diff = mean(a over sampled rows/cols) - mean(b over sampled rows,
+    SAME cols).
+
+    Returns (observed_diff, ci_low, ci_high), where observed_diff is the
+    UNRESAMPLED equal-weight-per-family mean difference
+    (mean(a_matrix, axis=1).mean() - mean(b_matrix, axis=1).mean()).
+    """
+    a_matrix = np.asarray(a_matrix, dtype=np.float64)
+    b_matrix = np.asarray(b_matrix, dtype=np.float64)
+    n_a_roots, n_eps = a_matrix.shape
+    n_b_roots, n_eps_b = b_matrix.shape
+    assert n_eps == n_eps_b, "both families must share the same episode-seed columns"
+
+    observed = float(np.nanmean(a_matrix, axis=1).mean() - np.nanmean(b_matrix, axis=1).mean())
+
+    rng = np.random.default_rng(seed)
+    diffs = np.empty(n_boot, dtype=np.float64)
+    for i in range(n_boot):
+        a_idx = rng.integers(0, n_a_roots, size=n_a_roots)
+        b_idx = rng.integers(0, n_b_roots, size=n_b_roots)  # independent of a_idx
+        ep_idx = rng.integers(0, n_eps, size=n_eps)  # SAME episode indices for both families
+        a_sampled = np.nanmean(a_matrix[np.ix_(a_idx, ep_idx)])
+        b_sampled = np.nanmean(b_matrix[np.ix_(b_idx, ep_idx)])
+        diffs[i] = a_sampled - b_sampled
+    alpha = 1 - confidence
+    lo, hi = np.percentile(diffs, [100 * alpha / 2, 100 * (1 - alpha / 2)])
+    return observed, float(lo), float(hi)
