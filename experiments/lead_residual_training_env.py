@@ -46,6 +46,11 @@ from uav_defend.policies.residual.lead_residual_observation import (
 
 from experiments.post_detection_training_env import PostDetectionTrainingEnv
 from experiments.post_detection_training_protocol import DEFAULT_EPISODE_SEED_POOL_SIZE
+from experiments.lead_residual_training_protocol import (
+    TRAINING_ROOT_NAMESPACE_BASE,
+    TRAINING_NAMESPACE_SIZE,
+    build_lr_ppo_episode_seed_sequence,
+)
 
 
 class LeadResidualTrainingEnv(gym.Env):
@@ -93,6 +98,26 @@ class LeadResidualTrainingEnv(gym.Env):
             max_standby_steps=max_standby_steps,
             episode_seed_pool_size=episode_seed_pool_size,
         )
+        # For a recognized LR-PPO protocol training root (55/56/57), REPLACE
+        # PostDetectionTrainingEnv's internal episode-seed pool (built above
+        # via the OLD generic, non-namespaced mechanism) with the corrected,
+        # collision-free per-root sequence -- WITHOUT modifying
+        # post_detection_training_env.py or post_detection_training_protocol.py
+        # (both remain exactly as used by the already-frozen 6-model 400k
+        # campaign). This only substitutes the DATA a pre-existing, unchanged
+        # consumption mechanism (_next_episode_seed) reads from -- the class
+        # itself is untouched. The FULL 1,000,000-seed namespace is generated
+        # up front (fast: plain Python ints) so the pool can never exhaust
+        # and silently fall back to the old, non-namespaced extension logic
+        # (a 400k-timestep campaign needs far fewer than 1,000,000 episodes
+        # even in the extreme one-step-per-episode case). Ordinary
+        # development/smoke-test roots (e.g. 12345) are NOT in
+        # TRAINING_ROOT_NAMESPACE_BASE and continue using the untouched OLD
+        # generic mechanism unchanged.
+        if root_seed in TRAINING_ROOT_NAMESPACE_BASE:
+            self._inner._episode_seeds = build_lr_ppo_episode_seed_sequence(root_seed, TRAINING_NAMESPACE_SIZE)
+            self._inner._pool_size = TRAINING_NAMESPACE_SIZE
+            self._inner._episode_seed_index = 0
         self._lead_policy = LeadInterceptPolicy(state_source="measurement", config=config)
         self._estimator_mode = "measurement"
         self.residual_max_angle_deg = float(residual_max_angle_deg)

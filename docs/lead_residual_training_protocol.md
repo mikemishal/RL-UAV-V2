@@ -91,38 +91,80 @@ respawning/repositioning/synthetic detected states); the defender remains
 co-located with the soldier and stationary at acquisition; the first
 PPO-controlled action occurs on the following step.
 
-## Seed protocol (FROZEN; new namespace, completely separate from the old study)
+## Seed protocol (FROZEN, CORRECTED; new namespace, completely separate from the old study)
 
 Defined in `experiments/lead_residual_training_protocol.py`.
 
 | Range | Purpose | Status |
 |---|---|---|
 | 55, 56, 57 | Training roots (LR-PPO-55/56/57) | to be opened by full training |
+| 1,000,000-1,999,999 | LR-PPO-55 training-episode namespace | to be opened by full training |
+| 2,000,000-2,999,999 | LR-PPO-56 training-episode namespace | to be opened by full training |
+| 3,000,000-3,999,999 | LR-PPO-57 training-episode namespace | to be opened by full training |
 | 60000-60099 | In-training validation / checkpoint selection (100 seeds) | reserved, unopened |
 | 60100-60299 | Post-training diagnostic holdout (200 seeds) | reserved, unopened |
 | 61000-65999 | New expanded final nominal test (5000 seeds) | reserved, sealed |
-| >=66000 | Future robustness studies | reserved, open-ended |
+| 66000-99999 | Future robustness studies (FINITE block; corrected from a previous open-ended ">=66000" claim) | reserved, unopened |
 
-The OLD baseline-study seed blocks remain permanently reserved/historical and
-are **never reused** here: 40000-40099 (old PPO validation), 40100-40299 (old
-diagnostic), 41000-45999 (opened final baseline test), >=46000 (was reserved
-for the old study).
+The OLD baseline-study seed blocks that were **actually opened/executed**
+remain permanently reserved/historical and are **never reused** here:
+40000-40099 (old PPO validation), 40100-40299 (old diagnostic), 41000-45999
+(opened final baseline test).
 
-### Deterministic training-episode-seed mapper (LR-PPO-specific)
+**Historical documentation correction**: an earlier version of this document
+additionally claimed ">=46000 was reserved for the old study" -- this was
+INCORRECT/OVERBROAD. ">=46000" was merely an UNUSED FUTURE PLACEHOLDER name
+in the old study's protocol module; no seed in that placeholder was ever
+opened/executed for robustness work, so it is not a permanent global
+reservation and does not (and never did) constrain the new LR-PPO namespace.
+This correction changes documentation only -- **no historical evidence or
+result changes**. It also motivated replacing every open-ended (">=X") LR-PPO
+range claim with an explicit finite block (see the robustness row above).
+
+### Deterministic, collision-free training-episode-seed mapper (LR-PPO-specific, CORRECTED)
+
+**Problem found and fixed**: the original mapper folded arbitrary
+`SeedSequence`-derived values into `[0, 60000)` via modulo. Reproducing it
+over the first 5000 seeds/root showed this created BOTH within-root
+duplicates (213/216/180 repeated occurrences for roots 55/56/57
+respectively) AND substantial cross-root collisions (396/342/422 pairwise
+intersections) -- unacceptable for three supposedly-independent training
+runs.
+
+**Corrected design**: each training root is assigned its own disjoint,
+million-scale integer namespace (LR-PPO-55: 1,000,000-1,999,999; LR-PPO-56:
+2,000,000-2,999,999; LR-PPO-57: 3,000,000-3,999,999). Within a root's
+namespace, episode index `i` is mapped to an offset via a deterministic
+**affine permutation** `offset_i = (a*i + b) mod M` (`M = 1,000,000`), with
+`(a, b)` derived deterministically from `numpy.random.SeedSequence(root_seed)`
+and `gcd(a, M) = 1` (enforced by construction: `a` is odd and not a multiple
+of 5, `M`'s only prime factors). Since `i -> a*i mod M` is a bijection on
+`Z/MZ` whenever `gcd(a, M) = 1` (standard modular-arithmetic fact), and
+composing with a fixed translation (`+b mod M`) preserves bijectivity, this
+guarantees **by construction** (not merely low collision probability):
+
+1. no duplicates within a training root (`i != j < M` => `offset_i != offset_j`)
+2. no overlap across roots (namespaces are disjoint integer ranges, spaced
+   exactly `M` apart, independent of the permutation)
+3. reproducibility (pure function of `root_seed`/`i`)
+4. no overlap with any evaluation block (all evaluation blocks are far
+   below 1,000,000)
 
 `experiments/lead_residual_training_protocol.py::build_lr_ppo_episode_seed_sequence`
 reuses the SAME underlying primitive as the existing corrected-PPO campaign
-(`numpy.random.SeedSequence(root_seed).spawn(...)`) but is a **new,
-LR-PPO-specific function** -- the existing
+(`numpy.random.SeedSequence(root_seed).spawn`-adjacent generation) but is a
+**new, LR-PPO-specific function** -- the existing
 `experiments/post_detection_training_protocol.py::build_episode_seed_sequence`
 (used by the already-frozen 6-model 400k campaign) is **not modified**.
-Every generated training episode seed is deterministically folded into
-`[0, 60000)` via modulo, which provably guarantees -- by construction -- that
-no training episode seed can ever collide with any current or future LR-PPO
-evaluation range (all of which begin at 60000). See
-`test_lead_residual_training_protocol.py` for verification that the same
-root produces an identical sequence, different roots produce different
-sequences, and no generated seed ever falls in a reserved range.
+Also enforced: prefix stability (`sequence(root, k)` is always a prefix of
+`sequence(root, n)` for `n >= k`, since `offset_i` never depends on
+`n_episodes`) and a hard seed-capacity check (`n_episodes` cannot exceed the
+1,000,000-seed namespace). See `test_lead_residual_training_protocol.py`
+(including a 100,000-seed-per-root full uniqueness/disjointness audit) and
+`test_lead_residual_training_env_seed_wiring.py` (confirms
+`LeadResidualTrainingEnv` actually draws its environment seeds from this
+corrected mapper for training roots 55/56/57, while ordinary development
+roots continue using the untouched old generic mechanism).
 
 ## Validation protocol (frozen; NOT executed in this task)
 

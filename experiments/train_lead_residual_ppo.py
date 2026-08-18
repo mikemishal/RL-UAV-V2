@@ -147,11 +147,11 @@ def main() -> int:
                 f"--smoke-test requires a development seed, not a protocol training root "
                 f"{TRAINING_ROOTS}; got {args.training_seed}."
             )
-    # Sanity: assert_not_opened_yet must reject the diagnostic range (fails
+    # Sanity: assert_not_opened_yet must reject the expanded-final range (fails
     # loudly here if the protocol constants were ever miswired).
     try:
-        assert_not_opened_yet(RESIDUAL_VALIDATION_SEED_START + 1000)  # lands inside the diagnostic range
-        raise AssertionError("expected assert_not_opened_yet to reject the diagnostic range")
+        assert_not_opened_yet(RESIDUAL_VALIDATION_SEED_START + 1000)  # 61000 -- lands inside the expanded-final range
+        raise AssertionError("expected assert_not_opened_yet to reject the expanded-final range")
     except ValueError:
         pass
 

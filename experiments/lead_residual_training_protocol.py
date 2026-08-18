@@ -4,24 +4,42 @@ completely separate seed namespace and frozen training/validation protocol
 constants for this research track (see docs/lead_residual_ppo_design.md and
 docs/lead_residual_training_protocol.md).
 
-IMPORTANT: the OLD baseline-study seed blocks remain permanently reserved
-and historical, and are UNRELATED to (never reused by) this new namespace:
-    40000..40099   old PPO validation
-    40100..40299   old diagnostic
-    41000..45999   opened final baseline test (5-controller study)
-    >=46000        was reserved for the old study; NOT repurposed here.
+HISTORICAL RANGE CLARIFICATION (corrected -- see task that fixed the
+training-episode-seed mapper): the OLD baseline-study seed blocks that were
+ACTUALLY OPENED/EXECUTED remain permanently reserved and historical, and are
+UNRELATED to (never reused by) this new namespace:
+    40000..40099   old PPO validation (executed)
+    40100..40299   old diagnostic (executed)
+    41000..45999   opened final baseline test (5-controller study, executed)
 
-This module defines a COMPLETELY SEPARATE namespace for the Lead-Residual
-research track:
-    TRAINING ROOTS:            55, 56, 57         (LR-PPO-55/56/57)
+The previous version of this docstring additionally claimed ">=46000 was
+reserved for the old study". That was INCORRECT/OVERBROAD: ">=46000" was
+merely an UNUSED FUTURE PLACEHOLDER name in the old study's protocol module
+-- no seed in that placeholder was ever opened/executed for robustness work.
+An open-ended ">=X" claim also mathematically overlaps any later open-ended
+claim (e.g. the new LR-PPO namespace below), which is why this correction
+replaces ALL open-ended (">=") LR-PPO range claims with FINITE blocks. No
+historical evidence changes as a result of this clarification -- only the
+documentation of an unused placeholder is corrected.
+
+This module defines a COMPLETELY SEPARATE, FINITE namespace for the
+Lead-Residual research track:
+    TRAINING ROOTS:            55, 56, 57         (LR-PPO-55/56/57 -- unchanged)
     NEW RESIDUAL VALIDATION:   60000..60099       (100 seeds -- FREEZE ONLY)
     NEW RESIDUAL DIAGNOSTIC:   60100..60299       (200 seeds -- FREEZE ONLY)
     NEW EXPANDED FINAL TEST:   61000..65999       (5000 seeds -- FREEZE ONLY)
-    NEW ROBUSTNESS:            >=66000            (FREEZE ONLY, open-ended)
+    NEW ROBUSTNESS:            66000..99999       (FREEZE ONLY, FINITE block,
+                                                    was previously the
+                                                    open-ended ">=66000")
 
-NONE of 60000+ may be executed until explicitly authorized by a future task.
-This module ONLY freezes/documents these ranges -- see
+NONE of 60000-99999 may be executed until explicitly authorized by a future
+task. This module ONLY freezes/documents these ranges -- see
 assert_not_opened_yet() for the runtime guard used by this task's tests.
+
+Training-episode seeds now live in a SEPARATE, million-scale-per-root
+namespace starting at 1,000,000 (see "DETERMINISTIC TRAINING-EPISODE-SEED
+GENERATION" below) -- disjoint from ALL of the above by construction, and
+far above the small integer values used by historical/dev seeds.
 """
 
 from __future__ import annotations
@@ -51,14 +69,24 @@ EXPANDED_FINAL_SEED_START = 61_000
 EXPANDED_FINAL_SEED_END = 65_999
 EXPANDED_FINAL_EPISODES = EXPANDED_FINAL_SEED_END - EXPANDED_FINAL_SEED_START + 1  # 5000
 
-FUTURE_ROBUSTNESS_SEED_START = 66_000
+# FINITE block (corrected from the previous open-ended ">=66000" claim --
+# see module docstring's HISTORICAL RANGE CLARIFICATION).
+ROBUSTNESS_SEED_START = 66_000
+ROBUSTNESS_SEED_END = 99_999
+FUTURE_ROBUSTNESS_SEED_START = ROBUSTNESS_SEED_START  # kept as an alias for callers using the old name
 
-# Old-study historical ranges -- retained here ONLY as documentation/for the
+# Old-study historical ranges -- ONLY the ranges that were ACTUALLY OPENED/
+# EXECUTED are reserved; retained here ONLY as documentation/for the
 # disjointness test; never reused, never modified upstream.
 OLD_STUDY_VALIDATION_RANGE = (40_000, 40_099)
 OLD_STUDY_DIAGNOSTIC_RANGE = (40_100, 40_299)
 OLD_STUDY_FINAL_RANGE = (41_000, 45_999)
-OLD_STUDY_FUTURE_ROBUSTNESS_START = 46_000
+# CORRECTED: this was an UNUSED FUTURE PLACEHOLDER in the old study's
+# protocol module, never opened/executed for any robustness work -- it is
+# NOT a permanent global reservation and must not be treated as disjoint
+# from (or claimed to overlap) any other namespace. Retained here ONLY to
+# document the correction itself.
+OLD_STUDY_FUTURE_ROBUSTNESS_PLACEHOLDER_UNUSED = 46_000
 
 
 def assert_not_opened_yet(seed: int) -> None:
@@ -71,52 +99,119 @@ def assert_not_opened_yet(seed: int) -> None:
         raise ValueError(f"Seed {seed} is in the RESERVED (not-yet-opened) LR-PPO diagnostic range.")
     if EXPANDED_FINAL_SEED_START <= seed <= EXPANDED_FINAL_SEED_END:
         raise ValueError(f"Seed {seed} is in the RESERVED (not-yet-opened) LR-PPO expanded-final range.")
-    if seed >= FUTURE_ROBUSTNESS_SEED_START:
-        raise ValueError(f"Seed {seed} is >= FUTURE_ROBUSTNESS_SEED_START ({FUTURE_ROBUSTNESS_SEED_START}); reserved.")
+    if ROBUSTNESS_SEED_START <= seed <= ROBUSTNESS_SEED_END:
+        raise ValueError(f"Seed {seed} is in the RESERVED (not-yet-opened) LR-PPO robustness range.")
 
 
 # =============================================================================
-# DETERMINISTIC TRAINING-EPISODE-SEED GENERATION -- LR-PPO-SPECIFIC MAPPER
+# DETERMINISTIC, COLLISION-FREE TRAINING-EPISODE-SEED GENERATION
 # =============================================================================
+# CORRECTED MAPPER (supersedes a prior modulo-60000 fold that was found to
+# create both within-root duplicates and cross-root collisions -- e.g. over
+# the first 5000 seeds/root: root 55 had 213 repeated occurrences, root 56
+# had 216, root 57 had 180, with 396/342/422 pairwise cross-root
+# intersections. Folding an arbitrary 32-bit value into a 60,000-slot space
+# via modulo is NOT injective over more than ~60,000 draws by the pigeonhole
+# principle, and provides no cross-root disjointness guarantee at all.)
+#
 # The existing experiments/post_detection_training_protocol.py::
 # build_episode_seed_sequence() (used by the already-FROZEN 6-model 400k
-# campaign) is REUSED IN MECHANISM but NOT modified or called directly here:
-# any change to that function could retroactively alter the meaning of the
-# already-frozen campaign's seeds. This module instead defines a SEPARATE,
-# LR-PPO-specific function built on the SAME underlying primitive
-# (numpy.random.SeedSequence(root_seed).spawn(...)).
+# campaign) is REUSED IN MECHANISM ONLY (SeedSequence-based) but NOT
+# modified or called directly here -- this module defines a SEPARATE,
+# LR-PPO-specific function.
 #
-# All LR-PPO evaluation ranges begin at 60,000 and extend upward (the
-# robustness range is explicitly open-ended, ">=66000"). Rather than
-# reject-and-retry against an open-ended, not-fully-enumerable set, every
-# generated LR-PPO TRAINING episode seed is deterministically folded into
-# the half-open interval [0, TRAINING_EPISODE_SEED_NAMESPACE_CEILING) via
-# modulo. This provably guarantees, BY CONSTRUCTION, that no training
-# episode seed can ever equal or exceed 60,000 -- and therefore can never
-# collide with ANY current OR future LR-PPO evaluation range (validation,
-# diagnostic, expanded-final, and robustness all live at >=60,000).
-# Determinism/reproducibility are preserved: modulo is a pure function, so
-# identical (root_seed, n_episodes) always yields the identical list.
-TRAINING_EPISODE_SEED_NAMESPACE_CEILING = 60_000
+# NEW DESIGN: each training root is assigned its OWN disjoint, million-scale
+# integer namespace (far above any historical/dev/evaluation seed):
+#     LR-PPO-55: 1,000,000 .. 1,999,999
+#     LR-PPO-56: 2,000,000 .. 2,999,999
+#     LR-PPO-57: 3,000,000 .. 3,999,999
+# Within a root's namespace, episode index i in [0, M) (M = 1,000,000) is
+# mapped to an OFFSET via a deterministic AFFINE PERMUTATION:
+#
+#     offset_i = (a*i + b) mod M
+#
+# where a and b are derived deterministically from
+# numpy.random.SeedSequence(root_seed), and gcd(a, M) = 1 (M = 10^6 =
+# 2^6 * 5^6, so this requires only that `a` be odd and not a multiple of 5).
+#
+# PROOF OF BIJECTIVITY (=> no duplicates within a root, for any i != j < M):
+# the map i -> a*i mod M is a group automorphism of Z/MZ (bijective) iff
+# gcd(a, M) = 1 (standard modular-arithmetic fact: a has a multiplicative
+# inverse mod M). Composing with a fixed translation (+b mod M) preserves
+# bijectivity (translations are bijections). Therefore i != j < M implies
+# offset_i != offset_j, hence env_seed_i != env_seed_j.
+#
+# PROOF OF CROSS-ROOT DISJOINTNESS: env_seed = root_namespace_base + offset,
+# with offset in [0, M) and root_namespace_base in {1_000_000, 2_000_000,
+# 3_000_000} spaced exactly M apart -- so each root's full value range
+# [base, base+M) is disjoint from every other root's range and from every
+# evaluation range (all of which are far below 1,000,000), independent of
+# which permutation (a, b) is used.
+#
+# Determinism/reproducibility are preserved: (a, b) are pure, deterministic
+# functions of root_seed, and offset_i is a pure function of i -- calling
+# this twice with the same arguments always returns the identical list, and
+# a PREFIX of a longer request is identical to a shorter request's full
+# result (since offset_i never depends on n_episodes).
+TRAINING_NAMESPACE_SIZE = 1_000_000  # M = 10^6 = 2^6 * 5^6
+
+TRAINING_ROOT_NAMESPACE_BASE: dict[int, int] = {
+    55: 1_000_000,
+    56: 2_000_000,
+    57: 3_000_000,
+}
 
 DEFAULT_EPISODE_SEED_POOL_SIZE = 100_000
 
 
+def _derive_affine_params(root_seed: int) -> tuple[int, int]:
+    """Deterministically derive (a, b) for offset_i = (a*i + b) mod M,
+    M = TRAINING_NAMESPACE_SIZE (= 2^6 * 5^6). Requires gcd(a, M) = 1, i.e.
+    a odd and not a multiple of 5 (M's only prime factors are 2 and 5)."""
+    seed_seq = np.random.SeedSequence(root_seed)
+    state = seed_seq.generate_state(2, dtype=np.uint64)
+    a = int(state[0] % TRAINING_NAMESPACE_SIZE)
+    a |= 1  # force odd
+    while a % 5 == 0:
+        a += 2  # stays odd; terminates within <=4 steps (only 1/5 odd values is a multiple of 5)
+    b = int(state[1] % TRAINING_NAMESPACE_SIZE)
+    assert np.gcd(a, TRAINING_NAMESPACE_SIZE) == 1, (root_seed, a)  # defense-in-depth
+    return a, b
+
+
 def build_lr_ppo_episode_seed_sequence(root_seed: int, n_episodes: int) -> list[int]:
     """
-    Deterministically derive `n_episodes` environment seeds from `root_seed`
-    for LR-PPO training, using the SAME underlying primitive as the existing
-    corrected-PPO campaign (SeedSequence(root_seed).spawn(...)), then folding
-    each raw 32-bit derived value into [0, TRAINING_EPISODE_SEED_NAMESPACE_CEILING)
-    via modulo so it can never collide with any LR-PPO evaluation seed.
+    Deterministically derive `n_episodes` COLLISION-FREE environment seeds
+    from `root_seed` for LR-PPO training, within that root's dedicated
+    disjoint 1,000,000-seed namespace (see module docstring for the
+    bijectivity/disjointness proof).
 
-    Pure function: calling this twice with the same arguments always returns
-    the identical list (see test_lead_residual_training_protocol.py).
+    Pure function: calling this twice with the same arguments always
+    returns the identical list. A prefix property holds: the first `k`
+    elements of build_lr_ppo_episode_seed_sequence(root, n) for any n >= k
+    equal build_lr_ppo_episode_seed_sequence(root, k) exactly (offset_i
+    depends only on i, never on n_episodes) -- see
+    test_lead_residual_training_protocol.py.
+
+    Raises:
+        ValueError: if root_seed has no assigned namespace (only 55/56/57
+            are currently assigned), or if n_episodes exceeds the
+            namespace's TRAINING_NAMESPACE_SIZE (1,000,000) capacity.
     """
-    seed_seq = np.random.SeedSequence(root_seed)
-    children = seed_seq.spawn(n_episodes)
-    raw = [int(child.generate_state(1, dtype=np.uint32)[0]) for child in children]
-    return [s % TRAINING_EPISODE_SEED_NAMESPACE_CEILING for s in raw]
+    if root_seed not in TRAINING_ROOT_NAMESPACE_BASE:
+        raise ValueError(
+            f"root_seed={root_seed} has no assigned LR-PPO training namespace; "
+            f"expected one of {sorted(TRAINING_ROOT_NAMESPACE_BASE)}."
+        )
+    if n_episodes > TRAINING_NAMESPACE_SIZE:
+        raise ValueError(
+            f"n_episodes={n_episodes} exceeds this root's namespace capacity "
+            f"({TRAINING_NAMESPACE_SIZE}); reduce n_episodes or extend the namespace design."
+        )
+    base = TRAINING_ROOT_NAMESPACE_BASE[root_seed]
+    a, b = _derive_affine_params(root_seed)
+    M = TRAINING_NAMESPACE_SIZE
+    return [base + (a * i + b) % M for i in range(n_episodes)]
 
 
 # =============================================================================
