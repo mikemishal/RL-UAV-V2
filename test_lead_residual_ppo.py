@@ -21,9 +21,14 @@ Covers (per the lead-residual-ppo task spec, item 24):
     9. no ground-truth leakage
     10. first-detection handoff unchanged
     11. acquisition fairness on dev seeds
-    12. zero-residual full episode matches standalone Lead
+    12. zero-residual full episode matches standalone Lead (summary-level)
+    12b. zero-residual STEPWISE trajectory equivalence (bit-identical; see
+         compose_lead_residual's exact fast path) -- hardening item 2
     13. existing policy regression (Greedy/PN/Lead/PPO/PPO-Kalman unchanged)
     14. physical-limit enforcement
+    15. residual_max_angle_deg domain validation (reject <0, >=90, NaN, Inf;
+        representative valid values 0/1/30/45/89; theta_max=0 ignores residual)
+        -- hardening item 3
 
 Run directly:
     python test_lead_residual_ppo.py
@@ -370,6 +375,166 @@ def test_zero_residual_full_episode_matches_standalone_lead():
         diff = abs(lead_row["min_enemy_soldier_dist"] - res_row["min_enemy_soldier_dist"])
         max_discrepancy = max(max_discrepancy, diff)
     assert max_discrepancy < 1e-3, max_discrepancy
+
+
+# ---------------------------------------------------------------------------
+# 2 (hardening). Strengthened zero-residual trajectory equivalence:
+# EVERY post-detection timestep compared (state, estimator, action, terminal
+# status), not merely terminal outcome/summary distance.
+# ---------------------------------------------------------------------------
+_STEPWISE_STATE_FIELDS = ("soldier_pos", "defender_pos", "defender_vel", "enemy_pos", "enemy_vel")
+
+
+def test_zero_residual_stepwise_matches_lead_every_timestep():
+    """
+    For each dev seed, step standalone Lead and the zero-residual
+    Lead-Residual interface in lockstep (same seed => identical RNG streams)
+    and compare EVERY timestep: physical state, detection flag, raw
+    measurement/measurement-velocity, Lead direction, hybrid direction, and
+    terminal status/outcome. Reports (via assertions) the number of compared
+    timesteps, max state discrepancy, max action discrepancy, and mismatch
+    count.
+
+    compose_lead_residual() has an EXACT bit-identical fast path for zero
+    residual (see uav_defend/policies/residual/lead_residual_composition.py),
+    so the hybrid action equals the Lead action bit-for-bit at every step;
+    since both environments share the identical seed (=> identical RNG
+    streams, consumed identically regardless of the action's numeric value),
+    the two trajectories are therefore expected to be BIT-IDENTICAL, not
+    merely within a tolerance.
+    """
+    total_timesteps_compared = 0
+    max_state_discrepancy = 0.0
+    max_action_discrepancy = 0.0
+    total_mismatches = 0
+
+    for seed in _DEV_SEEDS:
+        env_lead = SoldierEnv(config=_CFG_DIRECT)
+        lead_policy = LeadInterceptPolicy(state_source="measurement", config=_CFG_DIRECT)
+        obs_l, info_l = env_lead.reset(seed=seed)
+
+        env_res = SoldierEnv(config=_CFG_DIRECT)
+        res_policy = _SyntheticResidualPolicy(_zero_residual_fn, config=_CFG_DIRECT)
+        obs_r, info_r = env_res.reset(seed=seed)
+
+        # t=0 (reset) state must already match exactly.
+        for field in _STEPWISE_STATE_FIELDS:
+            disc = float(np.max(np.abs(info_l[field] - info_r[field])))
+            max_state_discrepancy = max(max_state_discrepancy, disc)
+        assert info_l["enemy_detected"] == info_r["enemy_detected"]
+
+        done = False
+        while not done:
+            policy_info_l = build_policy_info(info_l, "measurement")
+            action_l = lead_policy.act(obs_l, policy_info_l)
+
+            policy_info_r = build_policy_info(info_r, "measurement")
+            action_r = res_policy.act(obs_r, policy_info_r)  # hybrid direction
+
+            action_disc = float(np.max(np.abs(action_l - action_r)))
+            max_action_discrepancy = max(max_action_discrepancy, action_disc)
+
+            obs_l, _, term_l, trunc_l, info_l = env_lead.step(action_l)
+            obs_r, _, term_r, trunc_r, info_r = env_res.step(action_r)
+            total_timesteps_compared += 1
+
+            step_state_disc = 0.0
+            for field in _STEPWISE_STATE_FIELDS:
+                disc = float(np.max(np.abs(info_l[field] - info_r[field])))
+                step_state_disc = max(step_state_disc, disc)
+            max_state_discrepancy = max(max_state_discrepancy, step_state_disc)
+
+            assert info_l["enemy_detected"] == info_r["enemy_detected"], (seed, total_timesteps_compared)
+            if info_l.get("enemy_measurement") is not None and info_r.get("enemy_measurement") is not None:
+                m_disc = float(np.max(np.abs(info_l["enemy_measurement"] - info_r["enemy_measurement"])))
+                step_state_disc = max(step_state_disc, m_disc)
+                max_state_discrepancy = max(max_state_discrepancy, m_disc)
+            if info_l.get("enemy_measurement_velocity_valid") and info_r.get("enemy_measurement_velocity_valid"):
+                v_disc = float(np.max(np.abs(
+                    info_l["enemy_measurement_velocity"] - info_r["enemy_measurement_velocity"]
+                )))
+                step_state_disc = max(step_state_disc, v_disc)
+                max_state_discrepancy = max(max_state_discrepancy, v_disc)
+
+            assert term_l == term_r and trunc_l == trunc_r, (seed, total_timesteps_compared)
+            if info_l.get("outcome") is not None or info_r.get("outcome") is not None:
+                assert info_l.get("outcome") == info_r.get("outcome"), (seed, total_timesteps_compared)
+
+            if action_disc != 0.0 or step_state_disc != 0.0:
+                total_mismatches += 1
+
+            done = term_l or trunc_l
+
+        env_lead.close()
+        env_res.close()
+
+    print(
+        f"[stepwise zero-residual hardening] timesteps_compared={total_timesteps_compared} "
+        f"max_state_discrepancy={max_state_discrepancy:.3e} "
+        f"max_action_discrepancy={max_action_discrepancy:.3e} "
+        f"mismatches={total_mismatches}"
+    )
+    # Preferred requirement: bit-identical. compose_lead_residual's exact
+    # zero-residual fast path guarantees this (see module docstring).
+    assert max_action_discrepancy == 0.0, (
+        f"expected bit-identical hybrid==lead actions for zero residual, "
+        f"max_action_discrepancy={max_action_discrepancy}"
+    )
+    assert max_state_discrepancy == 0.0, (
+        f"expected bit-identical trajectories for zero residual, "
+        f"max_state_discrepancy={max_state_discrepancy}"
+    )
+    assert total_mismatches == 0
+    assert total_timesteps_compared > 0
+
+
+# ---------------------------------------------------------------------------
+# 3 (hardening). Residual angle domain validation
+# ---------------------------------------------------------------------------
+def test_theta_max_rejects_negative():
+    try:
+        compose_lead_residual(np.array([1.0, 0.0, 0.0]), np.zeros(3), -1.0)
+        assert False, "expected ValueError for theta_max < 0"
+    except ValueError:
+        pass
+
+
+def test_theta_max_rejects_90_and_above():
+    for bad in (90.0, 90.001, 120.0):
+        try:
+            compose_lead_residual(np.array([1.0, 0.0, 0.0]), np.array([0.0, 1.0, 0.0]), bad)
+            assert False, f"expected ValueError for theta_max={bad}"
+        except ValueError:
+            pass
+
+
+def test_theta_max_rejects_nan_and_inf():
+    for bad in (float("nan"), float("inf"), float("-inf")):
+        try:
+            compose_lead_residual(np.array([1.0, 0.0, 0.0]), np.zeros(3), bad)
+            assert False, f"expected ValueError for theta_max={bad}"
+        except ValueError:
+            pass
+
+
+def test_theta_max_representative_valid_values():
+    u_L = np.array([1.0, 0.0, 0.0])
+    r = np.array([0.0, 1.0, 0.0])  # unit perpendicular
+    for theta_max in (0.0, 1.0, 30.0, 45.0, 89.0):
+        hybrid = compose_lead_residual(u_L, r, theta_max)
+        assert np.all(np.isfinite(hybrid))
+        angle = angle_between_deg(hybrid, u_L)
+        assert angle <= theta_max + 1e-4, (theta_max, angle)
+
+
+def test_theta_max_zero_ignores_residual():
+    rng = np.random.default_rng(7)
+    for _ in range(200):
+        u_L = rng.normal(size=3)
+        u_L = u_L / np.linalg.norm(u_L)
+        r = rng.uniform(-1.0, 1.0, size=3)
+        hybrid = compose_lead_residual(u_L, r, 0.0)
+        assert np.allclose(hybrid, u_L, atol=1e-6), (hybrid, u_L, r)
 
 
 # ---------------------------------------------------------------------------

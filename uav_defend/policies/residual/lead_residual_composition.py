@@ -74,12 +74,23 @@ def compose_lead_residual(
             defensively regardless.
         residual_max_angle_deg: Maximum angular authority theta_max (degrees)
             the residual may rotate u_L by. See DEFAULT_RESIDUAL_MAX_ANGLE_DEG.
+            Must satisfy 0 <= theta_max < 90 (see "Angle domain" below).
         eps: Numerical-stability threshold for near-zero-norm degenerate cases.
 
     Returns:
         u_hybrid: shape (3,), float32, unit norm (or exactly zero iff
             lead_direction itself is the zero vector -- see "Degenerate
             safety" below). Never NaN/Inf.
+
+    Angle domain: the tangent-based construction (u_raw = u_L + tan(theta_max)
+    r_perp) is mathematically valid only for 0 <= theta_max < 90 degrees --
+    tan(theta_max) diverges to +inf as theta_max -> 90 and is negative (an
+    inverted/wrapped-around correction, not a bounded one) beyond 90. Raises
+    ValueError for theta_max < 0, theta_max >= 90, NaN, or Inf. Values close
+    to (but below) 90 are mathematically admissible but not necessarily
+    sensible hyperparameters (an almost-unconstrained rotation). At
+    theta_max=0, tan(0)=0 so u_hybrid == u_L for every residual action
+    (verified by test_theta_max_zero_ignores_residual in test_lead_residual_ppo.py).
 
     Degenerate safety (item 10): this function never emits NaN/Inf and never
     divides by zero.
@@ -94,7 +105,22 @@ def compose_lead_residual(
           renormalization below is therefore never a division by
           near-zero in this branch; the defensive eps check is
           included regardless as defense-in-depth.
+
+    Bit-identical zero-residual/parallel-residual fast path: whenever r_perp
+    is EXACTLY the zero vector (guaranteed for residual_action == [0,0,0],
+    since 0 - (0 . u)u == 0 exactly under IEEE754; may also occur for an
+    exactly-parallel residual), this function returns the ORIGINAL
+    lead_direction array cast to float32 UNCHANGED -- no renormalize
+    round-trip -- so that "zero learned correction" reproduces Lead
+    bit-for-bit, not merely within a numerical tolerance.
     """
+    theta_max_deg = float(residual_max_angle_deg)
+    if not np.isfinite(theta_max_deg) or theta_max_deg < 0.0 or theta_max_deg >= 90.0:
+        raise ValueError(
+            f"residual_max_angle_deg must satisfy 0 <= theta_max < 90 (tangent-based "
+            f"construction is undefined/unbounded at 90deg), got {residual_max_angle_deg}"
+        )
+
     u_L = np.asarray(lead_direction, dtype=np.float64).reshape(3)
     r_raw = np.asarray(residual_action, dtype=np.float64).reshape(3)
 
@@ -116,7 +142,16 @@ def compose_lead_residual(
 
     r_perp = r - float(np.dot(r, u_L_unit)) * u_L_unit
 
-    theta_max = np.deg2rad(float(residual_max_angle_deg))
+    if np.array_equal(r_perp, np.zeros(3)):
+        # Exact fast path: the residual contributes NOTHING (r_perp is
+        # bit-exact zero -- guaranteed for residual_action == [0,0,0], since
+        # 0 - (0 . u)*u == 0 exactly under IEEE754). Skip the renormalize
+        # round-trip entirely and return the ORIGINAL lead_direction bits
+        # unchanged, so zero-residual reproduces Lead bit-for-bit rather than
+        # merely "within tolerance".
+        return np.asarray(lead_direction, dtype=np.float32).reshape(3).copy()
+
+    theta_max = np.deg2rad(theta_max_deg)
     u_raw = u_L_unit + np.tan(theta_max) * r_perp
 
     norm_u_raw = float(np.linalg.norm(u_raw))
