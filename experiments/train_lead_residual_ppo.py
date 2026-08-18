@@ -53,6 +53,7 @@ from experiments.lead_residual_training_protocol import (
     CAMPAIGN_DIRNAME,
     CAMPAIGN_TIMESTEPS,
     VALIDATION_FREQUENCY_TIMESTEPS,
+    CHECKPOINT_FREQUENCY_TIMESTEPS,
     RESIDUAL_MAX_ANGLE_DEG,
     CHECKPOINT_SELECTION_METRIC,
     CHECKPOINT_TIE_BREAK_RULE,
@@ -77,6 +78,14 @@ def _get_git_branch() -> str:
         return subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=PROJECT_ROOT).decode().strip()
     except Exception:
         return "unknown"
+
+
+def _get_git_status_clean() -> bool:
+    try:
+        status = subprocess.check_output(["git", "status", "--porcelain"], cwd=PROJECT_ROOT).decode()
+        return not status.strip()
+    except Exception:
+        return False
 
 
 def _sb3_architecture_info(model: PPO) -> dict:
@@ -113,6 +122,95 @@ def _make_train_env_fn(root_seed: int, monitor_dir: Path):
     return _init
 
 
+def _enforce_official_run_lock(args: argparse.Namespace) -> None:
+    """
+    HARD GUARDRAIL (pre-launch protocol lock): for an OFFICIAL protocol
+    training root (55/56/57) run WITHOUT --smoke-test, every
+    scientific/protocol CLI value is MANDATORY and must exactly equal the
+    frozen value -- never silently coerced. Also enforces the source-commit
+    lock (git HEAD must equal the caller-supplied --expected-source-commit,
+    with a clean working tree) so all three official runs demonstrably come
+    from the identical, immutable source. Raises ValueError/RuntimeError
+    BEFORE any directory creation, environment construction, or reserved
+    validation-seed use.
+    """
+    if args.training_seed not in TRAINING_ROOTS or args.smoke_test:
+        return  # development/smoke roots keep full CLI override freedom
+
+    required = {
+        "--total-timesteps": (args.total_timesteps, CAMPAIGN_TIMESTEPS),
+        "--eval-freq": (args.eval_freq, VALIDATION_FREQUENCY_TIMESTEPS),
+        "--validation-episodes": (args.validation_episodes, VALIDATION_EPISODES),
+        "--residual-max-angle-deg": (args.residual_max_angle_deg, RESIDUAL_MAX_ANGLE_DEG),
+        "--checkpoint-freq": (args.checkpoint_freq, CHECKPOINT_FREQUENCY_TIMESTEPS),
+    }
+    mismatches = [f"{flag}={got!r} (frozen value={expected!r})" for flag, (got, expected) in required.items() if got != expected]
+    if mismatches:
+        raise ValueError(
+            f"OFFICIAL training root {args.training_seed} requires every frozen protocol value "
+            f"(no override permitted without --smoke-test). Mismatched: {'; '.join(mismatches)}"
+        )
+
+    if not args.expected_source_commit:
+        raise ValueError(
+            f"OFFICIAL training root {args.training_seed} requires --expected-source-commit "
+            "(the frozen LR_PPO_FINAL_TRAINING_SOURCE_COMMIT) to be supplied explicitly."
+        )
+    actual_commit = _get_git_commit()
+    if actual_commit != args.expected_source_commit:
+        raise RuntimeError(
+            f"OFFICIAL training root {args.training_seed}: git HEAD ({actual_commit}) does not match "
+            f"--expected-source-commit ({args.expected_source_commit}). Refusing to launch."
+        )
+    if not _get_git_status_clean():
+        raise RuntimeError(
+            f"OFFICIAL training root {args.training_seed}: working tree is not clean at commit "
+            f"{actual_commit}. Refusing to launch an official run against an unclean/uncommitted tree."
+        )
+
+
+def _check_output_collision_guard(output_dir: Path, model_dir: Path) -> None:
+    """
+    Refuses to launch into a directory that already contains a COMPLETED
+    official training run (never silently overwritten). Partial files from a
+    prior failed/interrupted attempt are reported (not deleted) so they can
+    be inspected before reuse.
+    """
+    completed_marker = output_dir / "COMPLETED.txt"
+    manifest_path = output_dir / "run_manifest.json"
+    is_smoke = None
+    if manifest_path.exists():
+        try:
+            is_smoke = bool(json.loads(manifest_path.read_text()).get("smoke_test", False))
+        except Exception:
+            is_smoke = None
+
+    if completed_marker.exists() and is_smoke is False:
+        raise RuntimeError(
+            f"Output directory {output_dir} already contains a COMPLETED official training run "
+            f"(COMPLETED.txt present, run_manifest.json smoke_test=False). Refusing to overwrite. "
+            "Move/rename the existing directory first if retraining is genuinely intended."
+        )
+    best_model = model_dir / "best_model.zip"
+    final_model = model_dir / "final_model.zip"
+    if (best_model.exists() or final_model.exists()) and is_smoke is False:
+        raise RuntimeError(
+            f"Model directory {model_dir} already contains a completed official model "
+            f"(best_model.zip/final_model.zip present, run_manifest.json smoke_test=False). "
+            "Refusing to overwrite."
+        )
+
+    partial_files = []
+    for d in (output_dir, model_dir):
+        if d.exists():
+            partial_files.extend(p for p in d.rglob("*") if p.is_file())
+    if partial_files:
+        print(f"[output-collision-guard] {len(partial_files)} pre-existing file(s) found under "
+              f"{output_dir} / {model_dir} (NOT a completed official run) -- inspect before reuse:")
+        for p in partial_files[:30]:
+            print(f"    {p}")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=f"{METHOD_NAME} ({METHOD_ABBREVIATION}) training")
     parser.add_argument("--training-seed", type=int, required=True,
@@ -127,10 +225,14 @@ def parse_args() -> argparse.Namespace:
                               "models/lead_residual_post_detection/seed_<training-seed>/ -- "
                               "a namespace separate from existing PPO/PPO-Kalman models.")
     parser.add_argument("--device", choices=["cpu", "auto"], default="cpu")
-    parser.add_argument("--checkpoint-freq", type=int, default=50_000)
+    parser.add_argument("--checkpoint-freq", type=int, default=CHECKPOINT_FREQUENCY_TIMESTEPS)
     parser.add_argument("--eval-freq", type=int, default=VALIDATION_FREQUENCY_TIMESTEPS)
     parser.add_argument("--validation-episodes", type=int, default=VALIDATION_EPISODES)
     parser.add_argument("--residual-max-angle-deg", type=float, default=RESIDUAL_MAX_ANGLE_DEG)
+    parser.add_argument("--expected-source-commit", type=str, default=None,
+                         help="REQUIRED for official roots 55/56/57 (without --smoke-test): the frozen "
+                              "LR_PPO_FINAL_TRAINING_SOURCE_COMMIT. The launcher aborts unless "
+                              "`git rev-parse HEAD` matches this value exactly and the tree is clean.")
     parser.add_argument("--smoke-test", action="store_true",
                          help="Marks this run as a SMOKE TEST -- NOT a paper model. "
                               "Requires --training-seed to be outside the reserved protocol roots.")
@@ -147,6 +249,12 @@ def main() -> int:
                 f"--smoke-test requires a development seed, not a protocol training root "
                 f"{TRAINING_ROOTS}; got {args.training_seed}."
             )
+    # HARD GUARDRAIL: official roots (55/56/57, non-smoke) must use every
+    # frozen protocol value and the exact frozen source commit -- checked
+    # BEFORE any directory creation, environment construction, or reserved
+    # validation-seed use.
+    _enforce_official_run_lock(args)
+
     # Sanity: assert_not_opened_yet must reject the expanded-final range (fails
     # loudly here if the protocol constants were ever miswired).
     try:
@@ -157,6 +265,7 @@ def main() -> int:
 
     output_dir = Path(args.output_dir)
     model_dir = Path(args.model_dir) if args.model_dir else (MODEL_OUTPUT_ROOT / f"seed_{args.training_seed}")
+    _check_output_collision_guard(output_dir, model_dir)
     checkpoints_dir = model_dir / "checkpoints"
     training_logs_dir = output_dir / "training_logs"
     monitor_dir = output_dir / "monitor"
@@ -248,6 +357,8 @@ def main() -> int:
     manifest = {
         "status": "completed",
         "smoke_test": bool(args.smoke_test),
+        "is_official_protocol_root": bool(args.training_seed in TRAINING_ROOTS and not args.smoke_test),
+        "expected_source_commit": args.expected_source_commit,
         "method_name": METHOD_NAME,
         "method_abbreviation": METHOD_ABBREVIATION,
         "git_commit": commit,

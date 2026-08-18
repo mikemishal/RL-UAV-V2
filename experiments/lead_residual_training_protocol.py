@@ -247,6 +247,12 @@ RESIDUAL_MAX_ANGLE_DEG = 30.0
 CAMPAIGN_TIMESTEPS = 400_000
 VALIDATION_FREQUENCY_TIMESTEPS = 25_000
 VALIDATION_EPISODES = 100
+# Locked for official runs alongside the other protocol values (item 2 of the
+# pre-launch-lock task) -- purely a logging/checkpoint-density parameter
+# (cannot affect training or model selection), but frozen anyway for complete
+# reproducibility. Matches experiments/ppo_hyperparams.py::CHECKPOINT_FREQ
+# (the standalone-PPO campaign's value).
+CHECKPOINT_FREQUENCY_TIMESTEPS = 50_000
 CHECKPOINT_SELECTION_METRIC = "safe_interception_success_rate"
 CHECKPOINT_TIE_BREAK_RULE = "earliest_training_step_wins_exact_ties"
 VALIDATION_DETERMINISTIC_INFERENCE = True
