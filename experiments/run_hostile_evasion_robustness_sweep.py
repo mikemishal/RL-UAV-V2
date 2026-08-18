@@ -60,6 +60,7 @@ from experiments.expanded_robustness_protocol import (
     NOMINAL_EVASION_GAIN,
     NOMINAL_EVASION_RADIUS,
     build_hostile_evasion_config,
+    assert_seed_in_hostile_evasion_range,
     assert_seed_not_yet_opened,
     assert_disjoint_from_all_prior_ranges,
 )
@@ -110,13 +111,22 @@ def build_policy_for_instance(instance, config):
     raise ValueError(instance.family)
 
 
-def run_full_sweep(instances, seeds: list[int], allow_dev: bool = False):
+def run_full_sweep(instances, seeds: list[int], production: bool = True):
     """Runs all (gain x instance x seed) missions. Returns
-    (episode_results_df, trajectories_by_gain, angle_data_by_gain)."""
-    if not allow_dev:
-        for s in seeds:
+    (episode_results_df, trajectories_by_gain, angle_data_by_gain).
+
+    production=True (default, used for the real 66000-66999 run): each seed
+    must fall exactly WITHIN the locked hostile_evasion range (positive
+    membership check -- this is what authorizes opening the range).
+    production=False (used for dev/smoke tasks on seeds like 123-127): each
+    seed must NOT fall in ANY reserved (not-yet-opened) range. Both modes
+    also enforce disjointness from all prior/already-consumed ranges."""
+    for s in seeds:
+        if production:
+            assert_seed_in_hostile_evasion_range(s)
+        else:
             assert_seed_not_yet_opened(s)
-            assert_disjoint_from_all_prior_ranges(s)
+        assert_disjoint_from_all_prior_ranges(s)
 
     rows = []
     trajectories_by_gain: dict[float, dict] = {}
@@ -410,7 +420,7 @@ def main() -> int:
 
     print(f"\nRunning HOSTILE-EVASION robustness sweep: {len(EVASION_GAIN_VALUES)} gains x "
           f"{len(instances)} instances x {len(SEEDS)} seeds (seeds {SEEDS[0]}..{SEEDS[-1]})...")
-    df, trajectories_by_gain, angle_data = run_full_sweep(instances, SEEDS)
+    df, trajectories_by_gain, angle_data = run_full_sweep(instances, SEEDS, production=True)
     df.to_csv(OUTPUT_ROOT / "episode_results.csv", index=False)
     expected_rows = len(EVASION_GAIN_VALUES) * len(instances) * len(SEEDS)
     assert len(df) == expected_rows, f"expected {expected_rows} rows, got {len(df)}"

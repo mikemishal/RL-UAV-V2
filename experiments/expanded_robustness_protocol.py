@@ -113,6 +113,17 @@ SWEEP_SEED_RANGES: dict[str, tuple[int, int]] = {
 }
 
 
+def assert_seed_in_hostile_evasion_range(seed: int) -> None:
+    """Positive-membership check used for the REAL production hostile-evasion
+    run: seed must fall exactly within the range being deliberately opened
+    (mirrors experiments.lead_residual_expanded_final_protocol.assert_seed_in_final_range).
+    Unlike assert_seed_not_yet_opened (a blanket guard used by dev/smoke
+    tasks to keep OFF every reserved range), this function is what actually
+    authorizes use of the hostile_evasion range itself."""
+    if not (HOSTILE_EVASION_SEED_START <= seed <= HOSTILE_EVASION_SEED_END):
+        raise ValueError(f"Seed {seed} is outside the locked hostile-evasion range {HOSTILE_EVASION_SEED_START}..{HOSTILE_EVASION_SEED_END}")
+
+
 def assert_seed_not_yet_opened(seed: int) -> None:
     """Raises if `seed` falls in ANY not-yet-opened expanded-robustness
     range (all of 66000-99999) -- guards implementation/smoke-test tasks
