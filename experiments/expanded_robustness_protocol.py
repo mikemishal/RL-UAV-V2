@@ -173,7 +173,18 @@ _CANONICAL_NOMINAL_CONFIG_KALMAN = EnvConfig(use_kalman_tracking=True, defender_
 def assert_only_fields_differ(swept_config: EnvConfig, allowed_diff_keys: set[str]) -> None:
     """Programmatically verify the ONLY EnvConfig fields differing from the
     canonical nominal (Direct or Kalman, matched by use_kalman_tracking) are
-    in `allowed_diff_keys`. Raises AssertionError otherwise."""
+    in `allowed_diff_keys`. Raises AssertionError otherwise.
+
+    NOTE: `use_kalman_tracking` is NEVER itself a swept robustness variable
+    -- the reference nominal is always selected to match the swept config's
+    own estimator track (Direct vs Kalman), so `use_kalman_tracking` never
+    appears in the diff set and must NOT be listed in `allowed_diff_keys`
+    (doing so would misleadingly imply it is a sweep dimension).
+    """
+    assert "use_kalman_tracking" not in allowed_diff_keys, (
+        "use_kalman_tracking is never a swept variable -- do not list it in allowed_diff_keys "
+        "(the nominal reference is always matched to the swept config's own estimator track)"
+    )
     nominal = _CANONICAL_NOMINAL_CONFIG_KALMAN if swept_config.use_kalman_tracking else _CANONICAL_NOMINAL_CONFIG_DIRECT
     swept_dict = dataclasses.asdict(swept_config)
     nominal_dict = dataclasses.asdict(nominal)
@@ -198,7 +209,7 @@ def build_hostile_evasion_config(estimator: str, evasion_gain: float) -> EnvConf
         enemy_evasion_radius=NOMINAL_EVASION_RADIUS,
         enemy_evasion_gain=evasion_gain,
     )
-    assert_only_fields_differ(config, {"use_kalman_tracking", "enemy_evasion_gain"})
+    assert_only_fields_differ(config, {"enemy_evasion_gain"})
     return config
 
 
@@ -223,7 +234,7 @@ def build_maneuverability_config(estimator: str, defender_max_accel: float, defe
         defender_max_accel=defender_max_accel,
         defender_max_turn_rate_deg=defender_max_turn_rate_deg,
     )
-    assert_only_fields_differ(config, {"use_kalman_tracking", "defender_max_accel", "defender_max_turn_rate_deg"})
+    assert_only_fields_differ(config, {"defender_max_accel", "defender_max_turn_rate_deg"})
     return config
 
 
@@ -236,13 +247,47 @@ FIXED_PROCESS_VAR = 1.0
 assert NOMINAL_MEASUREMENT_VAR in MEASUREMENT_VAR_VALUES
 
 
+# =============================================================================
+# SWEEP 3: MEASUREMENT NOISE -- variance grid (process_var FIXED, never a
+# swept/allowed-diff field -- see assert_process_var_fixed() below).
+# =============================================================================
+MEASUREMENT_VAR_VALUES: tuple[float, ...] = (0.05, 0.25, 0.50, 1.00, 2.00, 4.00)
+NOMINAL_MEASUREMENT_VAR = 0.50
+FIXED_PROCESS_VAR = 1.0
+assert NOMINAL_MEASUREMENT_VAR in MEASUREMENT_VAR_VALUES
+
+
+def assert_process_var_fixed(config: EnvConfig) -> None:
+    """Hard guard (item 2 of the hostile-evasion hardening task): measurement_var
+    is the ONLY swept estimator parameter for the measurement-noise sweep --
+    process_var must never be treated as an allowed sweep difference. Fails
+    loudly if `config.process_var`, or either canonical nominal reference's
+    process_var, ever drifts from FIXED_PROCESS_VAR (e.g. via an accidental
+    future EnvConfig default change)."""
+    assert config.process_var == FIXED_PROCESS_VAR, (
+        f"process_var must be fixed at {FIXED_PROCESS_VAR}, got {config.process_var}"
+    )
+    assert _CANONICAL_NOMINAL_CONFIG_DIRECT.process_var == FIXED_PROCESS_VAR, (
+        f"Direct nominal reference process_var drifted from {FIXED_PROCESS_VAR}: "
+        f"{_CANONICAL_NOMINAL_CONFIG_DIRECT.process_var}"
+    )
+    assert _CANONICAL_NOMINAL_CONFIG_KALMAN.process_var == FIXED_PROCESS_VAR, (
+        f"Kalman nominal reference process_var drifted from {FIXED_PROCESS_VAR}: "
+        f"{_CANONICAL_NOMINAL_CONFIG_KALMAN.process_var}"
+    )
+
+
 def build_measurement_noise_config(estimator: str, measurement_var: float) -> EnvConfig:
     config = EnvConfig(
         use_kalman_tracking=(estimator == "kalman"),
         measurement_var=measurement_var,
         process_var=FIXED_PROCESS_VAR,  # NOT Kalman retuning -- held fixed at every condition
     )
-    assert_only_fields_differ(config, {"use_kalman_tracking", "measurement_var", "process_var"})
+    assert_process_var_fixed(config)
+    # process_var is DELIBERATELY excluded from allowed_diff_keys: since it is
+    # fixed at the same value as the canonical nominal, it never legitimately
+    # differs -- excluding it makes any accidental future drift fail loudly.
+    assert_only_fields_differ(config, {"measurement_var"})
     return config
 
 
@@ -256,17 +301,24 @@ NOMINAL_HOSTILE_SPEED = 12.0
 assert NOMINAL_DEFENDER_SPEED in DEFENDER_SPEED_ARM_VALUES
 assert NOMINAL_HOSTILE_SPEED in HOSTILE_SPEED_ARM_VALUES
 
-# 9 unique (v_d, v_e) conditions: 5 + 5 - 1 (nominal counted once, not twice).
+# 9 unique (v_d, v_e) conditions, in EXPLICIT deterministic order (never a
+# set/set-union -- experiment/output ordering must be reproducible):
+# defender-speed arm first (12,12)/(15,12)/(18,12)[nominal]/(21,12)/(24,12),
+# then the hostile-speed arm EXCLUDING the already-listed nominal duplicate.
 MOBILITY_GRID: tuple[tuple[float, float], ...] = tuple(
-    {(v_d, NOMINAL_HOSTILE_SPEED) for v_d in DEFENDER_SPEED_ARM_VALUES}
-    | {(NOMINAL_DEFENDER_SPEED, v_e) for v_e in HOSTILE_SPEED_ARM_VALUES}
+    [(v_d, NOMINAL_HOSTILE_SPEED) for v_d in DEFENDER_SPEED_ARM_VALUES]
+    + [(NOMINAL_DEFENDER_SPEED, v_e) for v_e in HOSTILE_SPEED_ARM_VALUES if v_e != NOMINAL_HOSTILE_SPEED]
 )
 assert len(MOBILITY_GRID) == 9
+assert MOBILITY_GRID == (
+    (12.0, 12.0), (15.0, 12.0), (18.0, 12.0), (21.0, 12.0), (24.0, 12.0),
+    (18.0, 8.0), (18.0, 10.0), (18.0, 14.0), (18.0, 16.0),
+)
 
 
 def build_mobility_config(estimator: str, v_d: float, v_e: float) -> EnvConfig:
     config = EnvConfig(use_kalman_tracking=(estimator == "kalman"), v_d=v_d, v_e=v_e)
-    assert_only_fields_differ(config, {"use_kalman_tracking", "v_d", "v_e"})  # maneuverability limits NOT scaled with speed
+    assert_only_fields_differ(config, {"v_d", "v_e"})  # maneuverability limits NOT scaled with speed
     return config
 
 
@@ -280,7 +332,7 @@ assert NOMINAL_DETECTION_RADIUS in DETECTION_RADIUS_VALUES
 
 def build_detection_radius_config(estimator: str, detection_radius: float) -> EnvConfig:
     config = EnvConfig(use_kalman_tracking=(estimator == "kalman"), detection_radius=detection_radius)
-    assert_only_fields_differ(config, {"use_kalman_tracking", "detection_radius"})
+    assert_only_fields_differ(config, {"detection_radius"})
     return config
 
 

@@ -38,6 +38,7 @@ from experiments.expanded_robustness_protocol import (
     DETECTION_RADIUS_VALUES, NOMINAL_DETECTION_RADIUS,
     build_hostile_evasion_config, build_maneuverability_config,
     build_measurement_noise_config, build_mobility_config, build_detection_radius_config,
+    assert_only_fields_differ, assert_process_var_fixed,
     assert_seed_not_yet_opened, assert_disjoint_from_all_prior_ranges,
 )
 from experiments.run_lead_residual_diagnostic import verify_model_hashes
@@ -146,6 +147,17 @@ def test_mobility_grid_exact():
     assert sum(1 for c in MOBILITY_GRID if c == (NOMINAL_DEFENDER_SPEED, NOMINAL_HOSTILE_SPEED)) == 1
 
 
+def test_mobility_grid_exact_order():
+    # Explicit deterministic order (NOT set iteration): defender-speed arm
+    # first (12,12)/(15,12)/(18,12)[nominal]/(21,12)/(24,12), then the
+    # hostile-speed arm excluding the already-listed nominal duplicate.
+    assert MOBILITY_GRID == (
+        (12.0, 12.0), (15.0, 12.0), (18.0, 12.0), (21.0, 12.0), (24.0, 12.0),
+        (18.0, 8.0), (18.0, 10.0), (18.0, 14.0), (18.0, 16.0),
+    )
+    assert MOBILITY_GRID[2] == (NOMINAL_DEFENDER_SPEED, NOMINAL_HOSTILE_SPEED)
+
+
 def test_detection_radius_grid_exact():
     assert DETECTION_RADIUS_VALUES == (5.0, 10.0, 15.0, 20.0, 25.0, 30.0)
     assert NOMINAL_DETECTION_RADIUS == 15.0
@@ -184,6 +196,23 @@ def test_config_isolation_maneuverability():
 def test_config_isolation_measurement_noise():
     for v in MEASUREMENT_VAR_VALUES:
         build_measurement_noise_config("kalman", v)
+
+
+def test_process_var_isolation_rejects_corrupted_config():
+    # Negative test (item 2): a config with a non-nominal process_var must
+    # be REJECTED by the measurement-noise isolation guard, never silently
+    # accepted as an allowed sweep difference.
+    corrupted = EnvConfig(use_kalman_tracking=False, measurement_var=NOMINAL_MEASUREMENT_VAR, process_var=FIXED_PROCESS_VAR + 0.5)
+    try:
+        assert_process_var_fixed(corrupted)
+        assert False, "expected assert_process_var_fixed to reject a corrupted process_var"
+    except AssertionError:
+        pass
+    try:
+        assert_only_fields_differ(corrupted, {"measurement_var"})
+        assert False, "expected assert_only_fields_differ to reject process_var as an unexpected diff"
+    except AssertionError:
+        pass
 
 
 def test_config_isolation_mobility():
