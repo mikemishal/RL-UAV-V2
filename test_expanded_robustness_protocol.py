@@ -42,6 +42,7 @@ from experiments.expanded_robustness_protocol import (
     assert_seed_not_yet_opened, assert_disjoint_from_all_prior_ranges,
     assert_seed_in_hostile_evasion_range, assert_seed_in_maneuverability_range,
     assert_seed_in_measurement_noise_range, assert_seed_in_mobility_range,
+    assert_seed_in_detection_radius_range,
 )
 from experiments.run_lead_residual_diagnostic import verify_model_hashes
 from experiments.run_post_detection_diagnostic import audit_ground_truth_leakage
@@ -90,14 +91,15 @@ def test_exact_episode_counts():
 
 
 def test_assert_helpers_reject_all_reserved_and_future_seeds():
-    # hostile_evasion, maneuverability, and measurement_noise are now
-    # permanently frozen/consumed (not "not yet opened"), so all three are
+    # hostile_evasion, maneuverability, measurement_noise, and mobility are
+    # now permanently frozen/consumed (not "not yet opened"), so all four are
     # deliberately EXCLUDED from assert_seed_not_yet_opened's blanket check;
     # they are guarded instead by assert_disjoint_from_all_prior_ranges below.
     _frozen_consumed_ranges = [
         (HOSTILE_EVASION_SEED_START, HOSTILE_EVASION_SEED_END),
         (MANEUVERABILITY_SEED_START, MANEUVERABILITY_SEED_END),
         (MEASUREMENT_NOISE_SEED_START, MEASUREMENT_NOISE_SEED_END),
+        (MOBILITY_SEED_START, MOBILITY_SEED_END),
     ]
     still_not_yet_opened = [r for r in _ALL_ROBUSTNESS_RANGES if r not in _frozen_consumed_ranges]
     for lo, hi in still_not_yet_opened + [(FUTURE_UNUSED_SEED_START, FUTURE_UNUSED_SEED_END)]:
@@ -196,6 +198,22 @@ def test_assert_seed_in_mobility_range():
     assert MOBILITY_SEED_END + 1 == 70_000
 
 
+def test_assert_seed_in_detection_radius_range():
+    # Explicit boundary cases per protocol: 69999 reject, 70000 accept, 70999 accept, 71000 reject.
+    for s in (DETECTION_RADIUS_SEED_START - 1, DETECTION_RADIUS_SEED_END + 1):
+        try:
+            assert_seed_in_detection_radius_range(s)
+            assert False, f"expected rejection for out-of-range seed {s}"
+        except ValueError:
+            pass
+    for s in (DETECTION_RADIUS_SEED_START, DETECTION_RADIUS_SEED_END):
+        assert assert_seed_in_detection_radius_range(s) is None
+    assert DETECTION_RADIUS_SEED_START - 1 == 69_999
+    assert DETECTION_RADIUS_SEED_START == 70_000
+    assert DETECTION_RADIUS_SEED_END == 70_999
+    assert DETECTION_RADIUS_SEED_END + 1 == 71_000
+
+
 def test_hostile_evasion_grid_exact():
     assert EVASION_GAIN_VALUES == (0.00, 0.25, 0.50, 0.75, 1.00)
     assert NOMINAL_EVASION_GAIN == 0.75
@@ -271,6 +289,31 @@ def test_observation_normalization_uses_current_condition_speeds():
                 if term or trunc:
                     break
         env.close()
+
+
+def test_config_dependent_policies_receive_current_sweep_config():
+    # Item 8: PN/Lead/LR-PPO must be constructed from the CURRENT sweep
+    # config (via the corrected build_policy_for_instance pattern from the
+    # mobility runner, reused unmodified for detection_radius) -- never the
+    # older implicit-default helper that silently falls back to EnvConfig().
+    from experiments.run_mobility_robustness_sweep import build_policy_for_instance
+    from uav_defend.policies.baseline.lead_intercept_policy import LeadInterceptPolicy
+    from uav_defend.policies.baseline.proportional_navigation_policy import ProportionalNavigationPolicy
+    from uav_defend.policies.residual.lead_residual_ppo_policy_wrapper import LeadResidualPPOPolicyWrapper
+
+    instances = build_method_instances()
+    for detection_radius in (5.0, 20.0, 30.0):
+        config = build_detection_radius_config("measurement", detection_radius)
+        for instance in instances:
+            if instance.name not in ("pn", "lead", "lr_ppo"):
+                continue
+            policy = build_policy_for_instance(instance, config)
+            if isinstance(policy, (LeadInterceptPolicy, ProportionalNavigationPolicy)):
+                assert policy.dt == config.dt
+                assert policy.v_d == config.v_d
+            elif isinstance(policy, LeadResidualPPOPolicyWrapper):
+                assert policy._lead_policy.dt == config.dt
+                assert policy._lead_policy.v_d == config.v_d
 
 
 def test_method_instance_count_and_no_kalman_greedy():
