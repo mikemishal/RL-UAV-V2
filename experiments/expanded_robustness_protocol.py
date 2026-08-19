@@ -144,14 +144,25 @@ def assert_seed_in_measurement_noise_range(seed: int) -> None:
         raise ValueError(f"Seed {seed} is outside the locked measurement-noise range {MEASUREMENT_NOISE_SEED_START}..{MEASUREMENT_NOISE_SEED_END}")
 
 
+def assert_seed_in_mobility_range(seed: int) -> None:
+    """Positive-membership check used for the REAL production mobility
+    run: seed must fall exactly within the range being deliberately opened.
+    Unlike assert_seed_not_yet_opened (a blanket guard used by dev/smoke
+    tasks to keep OFF every reserved range), this function is what actually
+    authorizes use of the mobility range itself."""
+    if not (MOBILITY_SEED_START <= seed <= MOBILITY_SEED_END):
+        raise ValueError(f"Seed {seed} is outside the locked mobility range {MOBILITY_SEED_START}..{MOBILITY_SEED_END}")
+
+
 def assert_seed_not_yet_opened(seed: int) -> None:
     """Raises if `seed` falls in ANY not-yet-opened expanded-robustness
     range -- guards implementation/smoke-test tasks against accidentally
-    executing a reserved range. hostile_evasion (66000-66999) and
-    maneuverability (67000-67999) are EXCLUDED from this dict (both are now
-    permanently frozen/consumed, not "not yet opened"); they are instead
-    guarded via assert_disjoint_from_all_prior_ranges."""
-    _FROZEN_CONSUMED = ("hostile_evasion", "maneuverability")
+    executing a reserved range. hostile_evasion (66000-66999),
+    maneuverability (67000-67999) and measurement_noise (68000-68999) are
+    EXCLUDED from this dict (all three are now permanently frozen/consumed,
+    not "not yet opened"); they are instead guarded via
+    assert_disjoint_from_all_prior_ranges."""
+    _FROZEN_CONSUMED = ("hostile_evasion", "maneuverability", "measurement_noise")
     for _name, (lo, hi) in SWEEP_SEED_RANGES.items():
         if _name in _FROZEN_CONSUMED:
             continue
@@ -174,6 +185,8 @@ def assert_disjoint_from_all_prior_ranges(seed: int) -> None:
         raise ValueError(f"Seed {seed} collides with the permanently-frozen hostile-evasion range; must not reuse or rerun.")
     if MANEUVERABILITY_SEED_START <= seed <= MANEUVERABILITY_SEED_END:
         raise ValueError(f"Seed {seed} collides with the permanently-frozen maneuverability range; must not reuse or rerun.")
+    if MEASUREMENT_NOISE_SEED_START <= seed <= MEASUREMENT_NOISE_SEED_END:
+        raise ValueError(f"Seed {seed} collides with the permanently-frozen measurement-noise range; must not reuse or rerun.")
     for root, (lo, hi) in LR_PPO_TRAINING_NAMESPACES.items():
         if lo <= seed <= hi:
             raise ValueError(f"Seed {seed} collides with LR-PPO-{root}'s training-episode namespace.")

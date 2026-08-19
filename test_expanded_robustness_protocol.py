@@ -41,7 +41,7 @@ from experiments.expanded_robustness_protocol import (
     assert_only_fields_differ, assert_process_var_fixed,
     assert_seed_not_yet_opened, assert_disjoint_from_all_prior_ranges,
     assert_seed_in_hostile_evasion_range, assert_seed_in_maneuverability_range,
-    assert_seed_in_measurement_noise_range,
+    assert_seed_in_measurement_noise_range, assert_seed_in_mobility_range,
 )
 from experiments.run_lead_residual_diagnostic import verify_model_hashes
 from experiments.run_post_detection_diagnostic import audit_ground_truth_leakage
@@ -90,13 +90,14 @@ def test_exact_episode_counts():
 
 
 def test_assert_helpers_reject_all_reserved_and_future_seeds():
-    # hostile_evasion and maneuverability are now permanently frozen/consumed
-    # (not "not yet opened"), so both are deliberately EXCLUDED from
-    # assert_seed_not_yet_opened's blanket check; they are guarded instead by
-    # assert_disjoint_from_all_prior_ranges below.
+    # hostile_evasion, maneuverability, and measurement_noise are now
+    # permanently frozen/consumed (not "not yet opened"), so all three are
+    # deliberately EXCLUDED from assert_seed_not_yet_opened's blanket check;
+    # they are guarded instead by assert_disjoint_from_all_prior_ranges below.
     _frozen_consumed_ranges = [
         (HOSTILE_EVASION_SEED_START, HOSTILE_EVASION_SEED_END),
         (MANEUVERABILITY_SEED_START, MANEUVERABILITY_SEED_END),
+        (MEASUREMENT_NOISE_SEED_START, MEASUREMENT_NOISE_SEED_END),
     ]
     still_not_yet_opened = [r for r in _ALL_ROBUSTNESS_RANGES if r not in _frozen_consumed_ranges]
     for lo, hi in still_not_yet_opened + [(FUTURE_UNUSED_SEED_START, FUTURE_UNUSED_SEED_END)]:
@@ -179,6 +180,22 @@ def test_assert_seed_in_measurement_noise_range():
     assert MEASUREMENT_NOISE_SEED_END + 1 == 69_000
 
 
+def test_assert_seed_in_mobility_range():
+    # Explicit boundary cases per protocol: 68999 reject, 69000 accept, 69999 accept, 70000 reject.
+    for s in (MOBILITY_SEED_START - 1, MOBILITY_SEED_END + 1):
+        try:
+            assert_seed_in_mobility_range(s)
+            assert False, f"expected rejection for out-of-range seed {s}"
+        except ValueError:
+            pass
+    for s in (MOBILITY_SEED_START, MOBILITY_SEED_END):
+        assert assert_seed_in_mobility_range(s) is None
+    assert MOBILITY_SEED_START - 1 == 68_999
+    assert MOBILITY_SEED_START == 69_000
+    assert MOBILITY_SEED_END == 69_999
+    assert MOBILITY_SEED_END + 1 == 70_000
+
+
 def test_hostile_evasion_grid_exact():
     assert EVASION_GAIN_VALUES == (0.00, 0.25, 0.50, 0.75, 1.00)
     assert NOMINAL_EVASION_GAIN == 0.75
@@ -223,6 +240,37 @@ def test_detection_radius_grid_exact():
     assert DETECTION_RADIUS_VALUES == (5.0, 10.0, 15.0, 20.0, 25.0, 30.0)
     assert NOMINAL_DETECTION_RADIUS == 15.0
     assert DETECTION_RADIUS_VALUES.count(NOMINAL_DETECTION_RADIUS) == 1
+
+
+def test_lead_uses_current_condition_v_d_not_hardcoded_nominal():
+    # Item 10: LeadInterceptPolicy must read v_d from the CURRENT config, not
+    # a hardcoded 18.0 default -- required for a fair classical comparison
+    # at off-nominal defender speeds in the mobility sweep.
+    from uav_defend.policies.baseline.lead_intercept_policy import LeadInterceptPolicy
+    for v_d in (12.0, 15.0, 18.0, 21.0, 24.0):
+        config = build_mobility_config("measurement", v_d, NOMINAL_HOSTILE_SPEED)
+        policy = LeadInterceptPolicy(state_source="measurement", config=config)
+        assert policy.v_d == v_d
+
+
+def test_observation_normalization_uses_current_condition_speeds():
+    # Item 9: defender/hostile velocity normalization must use the CURRENT
+    # config.v_d/config.v_e, not hardcoded 18.0/12.0 -- checked at every
+    # mobility-arm endpoint on dev seeds only.
+    for v_d, v_e in ((12.0, 12.0), (24.0, 12.0), (18.0, 8.0), (18.0, 16.0)):
+        config = build_mobility_config("measurement", v_d, v_e)
+        env = SoldierEnv(config=config)
+        for seed in _DEV_SEEDS:
+            obs, info = env.reset(seed=seed)
+            assert np.all(np.isfinite(obs)), f"non-finite obs at (v_d={v_d}, v_e={v_e}), seed={seed}"
+            assert np.all(obs >= -1.0 - 1e-6) and np.all(obs <= 1.0 + 1e-6)
+            for _ in range(5):
+                obs, _, term, trunc, info = env.step(np.zeros(3, dtype=np.float32))
+                assert np.all(np.isfinite(obs)), f"non-finite obs mid-episode at (v_d={v_d}, v_e={v_e}), seed={seed}"
+                assert np.all(obs >= -1.0 - 1e-6) and np.all(obs <= 1.0 + 1e-6)
+                if term or trunc:
+                    break
+        env.close()
 
 
 def test_method_instance_count_and_no_kalman_greedy():
