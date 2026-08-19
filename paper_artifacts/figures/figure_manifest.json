@@ -1,0 +1,241 @@
+{
+  "generated_at_utc": "2026-08-19T14:35:44.620172+00:00",
+  "evidence_source_commit": "129beee5f79892c9922fe1179586a745704d3cc4",
+  "new_simulation": false,
+  "new_training": false,
+  "figures": {
+    "fig1_lrppo_architecture": {
+      "files": {
+        "pdf": {
+          "path": "paper_artifacts\\figures\\fig1_lrppo_architecture.pdf",
+          "sha256": "863cb5c124cb15a1a18a5dabb56b58ea4497f9c7f2ea6d06c0b61d28f6ad0c31",
+          "size_bytes": 30782
+        },
+        "svg": {
+          "path": "paper_artifacts\\figures\\fig1_lrppo_architecture.svg",
+          "sha256": "7614e8a0b4b9ce6f5c7887dadbfdf16d2411fd7d490f15e98d00c018f840ece1",
+          "size_bytes": 24079
+        },
+        "png": {
+          "path": "paper_artifacts\\figures\\fig1_lrppo_architecture.png",
+          "sha256": "1839e83016eb40ccf5dd4b13e6d1b0ec1384c909eaa153536e8a23fa58054c47",
+          "size_bytes": 132179
+        }
+      },
+      "source_datasets": [],
+      "generation_script": "experiments/generate_paper_figures.py",
+      "evidence_source_commit": "129beee5f79892c9922fe1179586a745704d3cc4",
+      "new_simulation": false,
+      "new_training": false,
+      "png_dimensions": [
+        1247,
+        1747
+      ]
+    },
+    "fig2_nominal_performance": {
+      "files": {
+        "pdf": {
+          "path": "paper_artifacts\\figures\\fig2_nominal_performance.pdf",
+          "sha256": "7ef25617e327e3264733abb71a5f07fbfb3b7a29e1243d3b339b39b8cfd3feba",
+          "size_bytes": 14094
+        },
+        "svg": {
+          "path": "paper_artifacts\\figures\\fig2_nominal_performance.svg",
+          "sha256": "486b63a3847030226c643496b4bad8d666fb123f83dd5479b0434cf954c02ca0",
+          "size_bytes": 16519
+        },
+        "png": {
+          "path": "paper_artifacts\\figures\\fig2_nominal_performance.png",
+          "sha256": "2bc928012302fb5596724349b1c3e8b0af8984ab04dfd41b9e3f0e47dc27298f",
+          "size_bytes": 47262
+        }
+      },
+      "source_datasets": [
+        "paper_artifacts/tables/table_nominal_performance.csv"
+      ],
+      "generation_script": "experiments/generate_paper_figures.py",
+      "evidence_source_commit": "129beee5f79892c9922fe1179586a745704d3cc4",
+      "new_simulation": false,
+      "new_training": false,
+      "png_dimensions": [
+        1009,
+        770
+      ]
+    },
+    "fig3_robustness": {
+      "files": {
+        "pdf": {
+          "path": "paper_artifacts\\figures\\fig3_robustness.pdf",
+          "sha256": "6bbcca621a26ae034f7dc527c682802e56c15e5487fb4918cfd9a3fd8caee30b",
+          "size_bytes": 36069
+        },
+        "svg": {
+          "path": "paper_artifacts\\figures\\fig3_robustness.svg",
+          "sha256": "fc42804a6679345dd82cbaa30789fbea6510d0fa3c5840cfcba678067a600126",
+          "size_bytes": 110948
+        },
+        "png": {
+          "path": "paper_artifacts\\figures\\fig3_robustness.png",
+          "sha256": "3f99f866b6494e3fa380a00a67a959484c06fe8c18f48d878ae41f9c1f3055d9",
+          "size_bytes": 291322
+        }
+      },
+      "source_datasets": [
+        "paper_artifacts/data/figure_evasion.csv",
+        "paper_artifacts/data/figure_maneuverability.csv",
+        "paper_artifacts/data/figure_measurement_noise.csv",
+        "paper_artifacts/data/figure_detection_radius.csv"
+      ],
+      "generation_script": "experiments/generate_paper_figures.py",
+      "evidence_source_commit": "129beee5f79892c9922fe1179586a745704d3cc4",
+      "new_simulation": false,
+      "new_training": false,
+      "png_dimensions": [
+        1931,
+        1658
+      ]
+    },
+    "fig4_mobility_optional": {
+      "files": {
+        "pdf": {
+          "path": "paper_artifacts\\figures\\fig4_mobility_optional.pdf",
+          "sha256": "23a2a48debd84cca683f3d511b353dbca2150eccce364f304b8f4b5873056223",
+          "size_bytes": 26607
+        },
+        "svg": {
+          "path": "paper_artifacts\\figures\\fig4_mobility_optional.svg",
+          "sha256": "4af7650770d8f061e5c0fb16bd40857bea385ed4a359bfb341f47b5577d0c926",
+          "size_bytes": 52591
+        },
+        "png": {
+          "path": "paper_artifacts\\figures\\fig4_mobility_optional.png",
+          "sha256": "9d21ed72ac879c9ecde9c1fd7560d233ef203a95494c30012687b85c0064a649",
+          "size_bytes": 153966
+        }
+      },
+      "source_datasets": [
+        "paper_artifacts/data/figure_mobility.csv"
+      ],
+      "generation_script": "experiments/generate_paper_figures.py",
+      "evidence_source_commit": "129beee5f79892c9922fe1179586a745704d3cc4",
+      "new_simulation": false,
+      "new_training": false,
+      "png_dimensions": [
+        2029,
+        945
+      ]
+    }
+  },
+  "validation_records": [
+    {
+      "figure": "fig2_nominal_performance",
+      "source_csv": "table_nominal_performance.csv",
+      "n_plotted_points": 5,
+      "min_success_pct": 74.68,
+      "max_success_pct": 88.83,
+      "key_expected_values_checked": {
+        "Greedy": 77.62,
+        "PN": 74.68,
+        "Lead": 85.82,
+        "PPO": 86.83,
+        "LR-PPO": 88.83
+      },
+      "key_values_from_csv": {
+        "Greedy": 77.62,
+        "PN": 74.68,
+        "Lead": 85.82,
+        "PPO": 86.83,
+        "LR-PPO": 88.83
+      },
+      "match": true
+    },
+    {
+      "figure": "fig3_robustness/panel_a_evasion",
+      "source_csv": "figure_evasion.csv",
+      "n_plotted_points": 15,
+      "min_success_pct": 84.33,
+      "max_success_pct": 90.2,
+      "key_expected_values_checked": {
+        "lead": 86.8,
+        "ppo": 84.33,
+        "lr_ppo": 90.2
+      },
+      "key_values_from_csv": {
+        "lead": 86.8,
+        "ppo": 84.33,
+        "lr_ppo": 90.2
+      },
+      "match": true
+    },
+    {
+      "figure": "fig3_robustness/panel_b_maneuverability",
+      "source_csv": "figure_maneuverability.csv",
+      "n_plotted_points": 18,
+      "min_success_pct": null,
+      "max_success_pct": null,
+      "key_expected_values_checked": {
+        "lr_minus_lead_pp_4_45": 4.73,
+        "lr_minus_ppo_pp_4_45": 14.4
+      },
+      "key_values_from_csv": {
+        "lr_minus_lead_pp_4_45": 4.73,
+        "lr_minus_ppo_pp_4_45": 14.4
+      },
+      "match": true
+    },
+    {
+      "figure": "fig3_robustness/panel_c_measurement_noise",
+      "source_csv": "figure_measurement_noise.csv",
+      "n_plotted_points": 24,
+      "min_success_pct": 71.8,
+      "max_success_pct": 91.2,
+      "key_expected_values_checked": {
+        "lead": 71.8,
+        "ppo": 82.1,
+        "lr_ppo": 79.9
+      },
+      "key_values_from_csv": {
+        "lead": 71.8,
+        "ppo": 82.1,
+        "lr_ppo": 79.9
+      },
+      "match": true
+    },
+    {
+      "figure": "fig3_robustness/panel_d_detection_radius",
+      "source_csv": "figure_detection_radius.csv",
+      "n_plotted_points": 18,
+      "min_success_pct": 62.27,
+      "max_success_pct": 91.77,
+      "key_expected_values_checked": {
+        "lead": 68.7,
+        "ppo": 62.27,
+        "lr_ppo": 69.63
+      },
+      "key_values_from_csv": {
+        "lead": 68.7,
+        "ppo": 62.27,
+        "lr_ppo": 69.63
+      },
+      "match": true
+    },
+    {
+      "figure": "fig4_mobility_optional",
+      "source_csv": "figure_mobility.csv",
+      "n_plotted_points": 27,
+      "min_success_pct": 39.47,
+      "max_success_pct": 94.33,
+      "key_expected_values_checked": {
+        "lead": 48.8,
+        "ppo": 39.47,
+        "lr_ppo": 57.17
+      },
+      "key_values_from_csv": {
+        "lead": 48.8,
+        "ppo": 39.47,
+        "lr_ppo": 57.17
+      },
+      "match": true
+    }
+  ]
+}
