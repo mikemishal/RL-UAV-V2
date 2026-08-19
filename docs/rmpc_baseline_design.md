@@ -1,13 +1,104 @@
 # Scenario-Based Robust MPC Baseline: Design Note
 
-Status: **DESIGN / REPOSITORY AUDIT ONLY -- no controller code, no CEM
-optimizer, no simulation, no evaluation. Nothing in this document has been
-run. See `docs/lead_residual_ppo_design.md` for the sibling design-note
-convention this document follows.**
+Status: **IMPLEMENTED / NOT YET TUNED OR PUBLICATION-EVALUATED.** The
+controller, CEM optimizer, and scenario model described below have been
+implemented and are covered by correctness/unit tests (all passing). NO
+hyperparameter tuning, NO Monte-Carlo/publication evaluation, and NO seed
+`>= 71000` has been opened. This document's design rationale (Sections
+1-19) remains the authoritative source of truth for WHY each choice was
+made; this status block records WHAT currently exists in the repository.
+
+### Implementation summary (added post-design, Prompt 2)
+
+**Files added:**
+- `uav_defend/dynamics/constrained_point_mass.py` -- pure, dependency-free
+  `advance_velocity(current_velocity, desired_velocity, max_speed, max_accel,
+  max_turn_rate_rad, max_climb_rate, max_descent_rate, dt, eps) ->
+  (next_velocity, diagnostics)`, factored out of
+  `SoldierEnv._advance_velocity` (now a thin wrapper delegating to it).
+  Regression-tested (`test_constrained_point_mass.py`, 16 tests) against an
+  independently re-derived oracle implementation and against the live
+  `SoldierEnv` wrapper, proving bit-identical behavior; the full existing
+  repository test suite (489 tests before this addition) continues to pass
+  unchanged after the refactor.
+- `uav_defend/policies/mpc/cem_optimizer.py` -- generic, domain-agnostic
+  Cross-Entropy Method optimizer (`cem_optimize`), operating on
+  `U in R^{H x 3}` with per-row eps-guarded unit-direction normalization,
+  a dedicated caller-supplied `numpy.random.Generator`, deterministic
+  stable tie-breaking, best-ever-candidate tracking (not merely the final
+  distribution mean), a `min_std` floor, and graceful non-finite-candidate
+  rejection (`CEMResult.success=False` if every candidate across the whole
+  optimization was non-finite).
+- `uav_defend/policies/mpc/hostile_scenarios.py` -- the six-scenario
+  hostile-motion model (S1 nominal continuation, S2/S3 bounded left/right
+  turn, S4/S5 bounded climb/descent, S6 MAX_AWAY closed-loop), propagated
+  through `advance_velocity` using ONLY the hostile's public physical
+  limits (`config.v_e`, `enemy_max_accel`, `enemy_max_turn_rate_deg`,
+  `enemy_max_climb_rate`, `enemy_max_descent_rate`). S1-S5 are open-loop
+  (independent of the candidate defender trajectory); S6 is the sole
+  closed-loop scenario, computing `desired_dir = normalize(hostile_pred_k -
+  defender_pred_k)` at each predicted step. Never reads
+  `enemy_evasion_gain`, `enemy_evasion_radius`, or
+  `_compute_enemy_evasion` (verified both by dedicated equal-trajectory
+  tests across the full documented range of these config fields and by an
+  AST-based static-code audit -- not merely a docstring/comment check).
+- `uav_defend/policies/mpc/rmpc_cost.py` -- defender rollout
+  (`rollout_defender`), per-scenario terminal-priority scoring
+  (`score_trajectory`, mirroring `SoldierEnv.step()`'s exact
+  `soldier_caught > unsafe_intercept > intercepted > progress-fallback`
+  order and reward magnitudes) and robust `min`-aggregation
+  (`evaluate_candidate`). Introduces ZERO new tunable weight constants
+  beyond the four already-fixed `EnvConfig` reward fields.
+- `uav_defend/policies/mpc/rmpc_policy.py` -- `RMPCConfig` (dataclass) and
+  `RMPCPolicy` (the `act(obs, info) -> np.ndarray(3,)` / `reset()`
+  controller). Pre-detection short-circuit (zero action, zero CEM
+  evaluations); first-measurement fallback (CEM still runs, using the
+  scenario model's own pursuit-direction fallback for a missing velocity
+  estimate); optimizer-failure fallback to pure pursuit; a dedicated
+  `numpy.random.Generator` re-seeded from `controller_seed` in both
+  `__init__` and `reset()` (never touching any environment-owned RNG
+  stream); diagnostics (`last_guidance_mode`, `last_scenario_scores`,
+  `last_robust_score`, `last_best_sequence`, `last_objective_evaluations`)
+  and non-action-affecting runtime instrumentation
+  (`last_decision_time_s`, `decision_times_s`, `decision_time_stats()`).
+
+**Test files added** (67 new tests total, all passing, both under `pytest`
+and each file's direct-execution `__main__` runner):
+- `test_constrained_point_mass.py` (16 tests) -- dynamics-refactor
+  regression.
+- `test_cem_optimizer.py` (11 tests) -- CEM correctness against synthetic
+  known-optimum objectives, determinism, non-finite-candidate handling.
+- `test_rmpc_scenarios.py` (8 tests) -- per-scenario physical-limit
+  satisfaction, S1-S5 open-loop / S6 closed-loop trajectory independence,
+  and the evasion-gain/radius independence test.
+- `test_rmpc_policy.py` (20 tests) -- information contract (including a
+  poisoned-`enemy_pos`/`enemy_vel` identical-action test and an AST-based
+  static audit), action validity, determinism, edge cases, pre-detection
+  compatibility, no side effects (including a before/after environment-RNG
+  bit-generator-state snapshot test), evaluator compatibility (including a
+  live `run_diagnostic_episode` smoke test), and runtime-instrumentation
+  neutrality.
+
+**Current default TEST configuration** (`RMPCConfig`'s dataclass
+defaults) -- an UNTUNED midpoint of the Section 11 candidate grids, NOT a
+selected final configuration: `horizon=6`, `population_size=128`,
+`elite_fraction=0.2`, `cem_iterations=5`, plus fixed (non-tunable) CEM
+numerical safeguards `cem_initial_std=1.0`, `cem_min_std=0.05`,
+`cem_sample_clip=3.0`. Section 15's staged hyperparameter-selection plan
+(Stage A/B/C, seeds 71000-71399) has NOT been executed; no seed `>= 71000`
+has been opened by this implementation work, and no `results/` directory
+has been created for RMPC. NO success-rate, interception-performance, or
+runtime-benchmark numbers exist yet for this controller.
+
+**Not yet done:** hyperparameter selection (Section 15), integration into
+the evaluation-pipeline `MethodInstance`/`build_policy_for_instance`
+registries (Section 4.5), the final nominal comparison and targeted
+robustness sweeps (Section 14, seeds `>= 72000`), and the manuscript text
+(Section 18-19).
 
 ## 1. Scientific motivation
 
-The manuscript currently compares five method families: Greedy (simple
+The manuscript currently compares six existing methods: Greedy (simple
 classical reference), PN (classical guidance reference), Lead (strong
 predictive analytical guidance), PPO (end-to-end learned controller),
 PPO-Kalman (estimator ablation), and LR-PPO (the proposed hybrid). None of
@@ -37,7 +128,7 @@ sensing budget already achieves."
 | LR-PPO | proposed hybrid method |
 | **RMPC** | **robust optimization-based model-predictive comparator (not a proposed contribution)** |
 
-RMPC is added as an **eighth-column comparator**, not as a competing
+RMPC is added as a **seventh controller / additional comparator**, not as a competing
 proposed method. Its purpose is to show where a receding-horizon robust
 planner -- with access to exactly the same sanitized sensing budget as every
 other measurement-track controller -- lands relative to Lead, PPO, and
@@ -183,10 +274,13 @@ itself should be required, since RMPC implements the same `act(obs, info)` /
    allows "vehicle limits and safety radii" as public knowledge. Evasion
    gain/radius are neither -- they describe how reactively the hostile
    *chooses* to behave, which is analogous to a hidden policy parameter.
-   Section 8 below treats only the *admissible range* of `enemy_evasion_gain`
-   (`[0, 1]`, itself a documented `EnvConfig` invariant/validation bound) as
-   legitimate public knowledge, never the realized operating value (`0.75`
-   in the current frozen configuration).
+   **CORRECTION (post-design-review): RMPC's scenario generator MUST NOT
+   use `enemy_evasion_gain` or `enemy_evasion_radius` at all, including
+   their documented admissible range or realized value.** These parameters
+   define the simulator hostile POLICY, not airframe physics, and are
+   excluded entirely from the scenario model (see Section 8.2's revised
+   MAX_AWAY scenario, which uses only physical limits and legitimate
+   measured state -- never the simulator's evasion formula or parameters).
 3. **No existing RMPC-adjacent code exists yet** (`uav_defend/policies/mpc/`,
    CEM optimizer, or dynamics-prediction module all absent) -- this is a
    from-scratch design, not a modification of an existing partial
@@ -290,11 +384,11 @@ ever provide. RMPC is therefore designed to bound its uncertainty using only
 the *admissible envelope* implied by public physical/config limits, never
 the specific realized disturbance.
 
-`enemy_evasion_gain` is a boundary case (Section 4.6 item 2): its *type*
-(`[0, 1]`) is a public, documented `EnvConfig` invariant, but its *realized
-value* (0.75 in the frozen configuration) is a hidden policy parameter.
-RMPC's scenario set (S6 below) uses only the admissible upper bound of this
-documented range (`lambda_assumed = 1.0`), never the realized value.
+`enemy_evasion_gain` and `enemy_evasion_radius` describe the simulator
+hostile's decision POLICY, not airframe physics, and are therefore EXCLUDED
+ENTIRELY from RMPC's scenario generator (Section 8.2's MAX_AWAY scenario
+uses only physical limits and legitimate measured state, never these
+parameters or the simulator's `_compute_enemy_evasion` formula).
 
 ### 8.2 Proposed scenario set (six scenarios, smallest defensible set)
 
@@ -312,12 +406,13 @@ the defender's):
 | S3 | Bounded right turn | Mirror of S2, rotated right. |
 | S4 | Bounded climb | S1 direction with vertical component driven to `+enemy_max_climb_rate`. |
 | S5 | Bounded descent | S1 direction with vertical component driven to `-enemy_max_descent_rate`. |
-| S6 | Worst-admissible reactive evasion | Direction computed by the SAME relative-geometry evasion formula the environment uses (bias away from the *candidate defender's predicted position* within `enemy_evasion_radius`), evaluated at `lambda_assumed = 1.0` (the upper bound of the documented `[0,1]` range), combined with pursuit -- this is the only scenario whose hostile motion depends on the candidate defender rollout being evaluated (closed-loop worst-case reactivity), all others are open-loop. |
+| S6 | MAX_AWAY (generic worst-direction bounded maneuver) | At each predicted step, command a desired direction AWAY from the *candidate defender's predicted position* (a purely geometric, physical-limits-only construction: e.g. `desired_dir = normalize(hostile_pred_k - defender_pred_k)`), then propagate through the SAME `advance_velocity` helper using ONLY the hostile's public physical limits. This scenario is the only one whose hostile motion depends on the candidate defender rollout being evaluated (closed-loop worst-case direction), all others are open-loop. It MUST NOT use `enemy_evasion_gain`, `enemy_evasion_radius`, or the simulator's `_compute_enemy_evasion` formula/weave/heading-noise state -- it is a generic bounded-maneuver-uncertainty construct, not a reproduction of the simulator's hostile policy. |
 
 This is explicitly a **bounded scenario uncertainty model**, not a
 prediction of the true simulator hostile policy: it excludes weave AR(1)
-bias, heading noise, and the realized evasion gain, and the paper must state
-this distinction (Section 18).
+bias, heading noise, and the `enemy_evasion_gain`/`enemy_evasion_radius`
+parameters and formula ENTIRELY (not merely their realized values), and the
+paper must state this distinction (Section 18).
 
 ### 8.3 Feasibility at dt=0.5s
 

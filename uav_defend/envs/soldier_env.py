@@ -22,6 +22,7 @@ from gymnasium import spaces
 
 from uav_defend.config.env_config import EnvConfig
 from uav_defend.tracking import EnemyKalmanFilter
+from uav_defend.dynamics.constrained_point_mass import advance_velocity
 
 
 class SoldierEnv(gym.Env):
@@ -708,81 +709,17 @@ class SoldierEnv(gym.Env):
                     "turn_saturated" (bool), "climb_saturated" (bool, True if
                     the vertical-rate command limit in step 1 was active).
         """
-        dt = self.config.dt
-        eps = self.config.eps
-        
-        current_velocity = np.asarray(current_velocity, dtype=np.float64)
-        desired_velocity = np.asarray(desired_velocity, dtype=np.float64)
-        
-        # 1. Vertical-rate command limiting
-        desired_vz = desired_velocity[2]
-        desired_vz_clipped = float(np.clip(desired_vz, -max_descent_rate, max_climb_rate))
-        climb_saturated = abs(desired_vz_clipped - desired_vz) > 1e-9
-        
-        # 2. Horizontal turn-rate limiting
-        cur_h = current_velocity[0:2]
-        des_h = desired_velocity[0:2]
-        ch = float(np.linalg.norm(cur_h))
-        dh = float(np.linalg.norm(des_h))
-        
-        turn_rate_used_rad = 0.0
-        turn_saturated = False
-        
-        if dh <= eps:
-            # Desired horizontal command is (near) zero: hold current
-            # heading, command zero horizontal speed (bounded braking).
-            target_heading = np.arctan2(cur_h[1], cur_h[0]) if ch > eps else 0.0
-            target_h_mag = 0.0
-        elif ch <= eps:
-            # Current horizontal velocity undefined (at/near rest):
-            # initialize heading directly toward the desired heading; no
-            # rate limit applies to an undefined previous heading.
-            target_heading = np.arctan2(des_h[1], des_h[0])
-            target_h_mag = dh
-        else:
-            psi_current = np.arctan2(cur_h[1], cur_h[0])
-            psi_desired = np.arctan2(des_h[1], des_h[0])
-            delta_psi = psi_desired - psi_current
-            delta_psi = (delta_psi + np.pi) % (2 * np.pi) - np.pi  # wrap to [-pi, pi]
-            max_delta = max_turn_rate_rad * dt
-            if abs(delta_psi) > max_delta:
-                delta_psi = np.sign(delta_psi) * max_delta
-                turn_saturated = True
-            target_heading = psi_current + delta_psi
-            target_h_mag = dh
-            turn_rate_used_rad = abs(delta_psi) / dt if dt > 0 else 0.0
-        
-        target_velocity = np.array([
-            target_h_mag * np.cos(target_heading),
-            target_h_mag * np.sin(target_heading),
-            desired_vz_clipped,
-        ])
-        
-        # 3. Acceleration limiting (bounded convex-combination step toward target)
-        delta_v = target_velocity - current_velocity
-        delta_v_norm = float(np.linalg.norm(delta_v))
-        max_delta_v = max_accel * dt
-        accel_saturated = delta_v_norm > max_delta_v
-        if accel_saturated and delta_v_norm > eps:
-            delta_v = delta_v / delta_v_norm * max_delta_v
-        next_velocity = current_velocity + delta_v
-        accel_used = float(np.linalg.norm(delta_v)) / dt if dt > 0 else 0.0
-        
-        # 4. Total-speed / vertical-rate safety enforcement (defensive clip)
-        speed = float(np.linalg.norm(next_velocity))
-        if speed > max_speed and speed > eps:
-            next_velocity = next_velocity / speed * max_speed
-        next_velocity[2] = np.clip(next_velocity[2], -max_descent_rate, max_climb_rate)
-        
-        diagnostics = {
-            "accel_used": accel_used,
-            "turn_rate_used_deg": float(np.degrees(turn_rate_used_rad)),
-            "accel_saturated": bool(accel_saturated),
-            "turn_saturated": bool(turn_saturated),
-            "climb_saturated": bool(climb_saturated),
-        }
-        
-        return next_velocity.astype(np.float32), diagnostics
+        return advance_velocity(
+            current_velocity=current_velocity,
+            desired_velocity=desired_velocity,
+            max_speed=max_speed,
+            max_accel=max_accel,
+            max_turn_rate_rad=max_turn_rate_rad,
+            max_climb_rate=max_climb_rate,
+            max_descent_rate=max_descent_rate,
+            dt=self.config.dt,
+            eps=self.config.eps,
+        )
     
     def _apply_boundary(self, pos: np.ndarray, vel: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """
