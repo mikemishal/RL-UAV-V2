@@ -96,6 +96,68 @@ registries (Section 4.5), the final nominal comparison and targeted
 robustness sweeps (Section 14, seeds `>= 72000`), and the manuscript text
 (Section 18-19).
 
+### Pre-tuning hardening pass (Prompt 3)
+
+Status remains **IMPLEMENTED / NOT YET TUNED OR PUBLICATION-EVALUATED.**
+This pass corrected two correctness/rigor issues found before any
+development/validation seed was opened; no seed `>= 71000` was opened by
+this pass and no `results/` directory or performance number exists.
+
+1. **CEM is now initialized from the measurement-based Lead direction, not
+   an unstructured zero mean.** `uav_defend/policies/mpc/lead_init.py`
+   (new) provides a pure `solve_lead_direction(target_pos, target_vel,
+   defender_pos, v_d, eps)` function that reuses
+   `LeadInterceptPolicy._solve_intercept_time` (an existing, already-tested
+   `@staticmethod` with no instance-state dependence) directly, rather than
+   re-deriving a second copy of the intercept-time quadratic.
+   `LeadInterceptPolicy` itself is UNMODIFIED by this pass (confirmed by an
+   empty `git diff` against that file) -- a dedicated consistency-
+   regression test (`test_lead_init.py`) proves the new pure helper's
+   direction matches `LeadInterceptPolicy(state_source="measurement").act()`
+   bit-for-bit across randomized states. `RMPCPolicy.act()` now builds
+   `init_mean` by repeating this direction over the full horizon and passes
+   it to `cem_optimize(..., init_mean=init_mean)` (previously `None`). If
+   the finite-difference hostile velocity is unavailable or no valid
+   predictive intercept solution exists, the same helper's pure-pursuit
+   fallback toward `enemy_measurement` is used instead. No cross-timestep
+   warm-start was added. A new diagnostic, `last_initialization_mode`
+   (`"lead"` | `"pursuit"` | `None` when CEM did not run), records which
+   case applied.
+2. **The nonterminal (no-terminal-event-within-horizon) objective term no
+   longer includes an undeclared extra weight.** The previous formula,
+   `reward_progress_scale * (dist_de_0 - dist_de_H) - dist_de_H`, is
+   corrected to `reward_progress_scale * (dist_de_0 - dist_de_H)` --
+   `dist_de_0` is fixed across all candidates at a given decision, so
+   maximizing progress is equivalent to minimizing terminal
+   defender-hostile distance without an extra, undeclared `-dist_de_H`
+   coefficient. Terminal-event rewards (`reward_intercept`,
+   `reward_soldier_caught`, `reward_unsafe_intercept`) are unchanged. RMPC
+   still introduces ZERO new tunable weight constants beyond the
+   already-fixed `EnvConfig.reward_progress_scale`.
+   **Publication-safe wording:** "RMPC uses the environment's terminal
+   mission rewards and closing-progress scale in its finite-horizon
+   objective" -- NOT "RMPC uses exactly the same reward function as PPO"
+   (RMPC's objective is mission-aligned but is not an exact replica of the
+   RL training reward; `reward_time_penalty`/`reward_proximity_warning`
+   remain intentionally omitted).
+3. **Corrected theoretical computational accounting** (still NOT a measured
+   runtime benchmark) for the current default TEST configuration
+   (`N=population_size=128`, `I=cem_iterations=5`, `S`=6 scenarios,
+   `H=horizon=6`):
+   - Candidate objective evaluations: `N * I = 128 * 5 = 640`, plus 1 final
+     selected-candidate reevaluation (for diagnostics).
+   - Hostile scenario-step propagations: `N * I * S * H = 128 * 5 * 6 * 6 =
+     23,040`, before the final reevaluation's own `S * H = 36` steps.
+   - Defender rollout steps: `N * I * H = 128 * 5 * 6 = 3,840`, before the
+     final reevaluation's own `H = 6` steps.
+   These are theoretical accounting quantities derived directly from the
+   implementation's call structure, not measured wall-clock benchmarks.
+4. New test files: `test_lead_init.py` (8 tests), `test_rmpc_cost.py`
+   (3 tests), plus 5 new tests added to `test_rmpc_policy.py` -- 16 new
+   tests total, all passing under `pytest` and each file's direct-execution
+   `__main__` runner. Full repository suite: 544 passed (was 528 before
+   this pass).
+
 ## 1. Scientific motivation
 
 The manuscript currently compares six existing methods: Greedy (simple

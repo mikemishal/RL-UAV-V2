@@ -20,6 +20,7 @@ from uav_defend.config.env_config import EnvConfig
 from uav_defend.envs import SoldierEnv
 from uav_defend.policies.mpc import rmpc_policy as rmpc_policy_module
 from uav_defend.policies.mpc import rmpc_cost as rmpc_cost_module
+from uav_defend.policies.mpc import lead_init as lead_init_module
 from uav_defend.policies.mpc.rmpc_policy import RMPCConfig, RMPCPolicy, VALID_GUIDANCE_MODES
 from uav_defend.policies.sanitize import build_policy_info, estimator_mode_for_env
 
@@ -135,10 +136,11 @@ def _forbidden_identifier_usages(module, forbidden_names):
 
 def test_rmpc_policy_source_never_references_forbidden_identifiers():
     """Static AST audit of the RMPC implementation modules: actual CODE
-    must never access ground-truth keys or evasion-policy parameters."""
+    must never access ground-truth keys, Kalman-track fields, or
+    evasion-policy parameters."""
     forbidden = ("enemy_evasion_gain", "enemy_evasion_radius", "_compute_enemy_evasion",
-                 "enemy_pos", "enemy_vel")
-    for module in (rmpc_policy_module, rmpc_cost_module):
+                 "enemy_pos", "enemy_vel", "e_hat", "v_hat")
+    for module in (rmpc_policy_module, rmpc_cost_module, lead_init_module):
         hits = _forbidden_identifier_usages(module, forbidden)
         assert hits == [], f"forbidden identifiers used in {module.__name__} code: {hits}"
 
@@ -372,6 +374,69 @@ def test_decision_time_stats_reporting():
     assert stats["count"] == 1
     assert stats["mean"] >= 0.0
     assert stats["max"] >= stats["mean"]
+
+
+# --- L. CEM nominal initialization (hardening pass) -------------------------
+
+def test_initialization_mode_lead_when_velocity_valid_and_solvable():
+    info = _detected_info(enemy_measurement=(20.0, 0.0, 0.0), enemy_measurement_velocity=(1.0, 0.0, 0.0),
+                           velocity_valid=True, defender_pos=(0.0, 0.0, 0.0))
+    policy = RMPCPolicy(rmpc_config=FAST_RMPC_CONFIG)
+    policy.act(np.zeros(16), info)
+    assert policy.last_initialization_mode in ("lead", "pursuit")  # both are valid depending on geometry
+    assert policy.last_initialization_mode is not None
+
+
+def test_initialization_mode_pursuit_when_velocity_invalid():
+    info = _detected_info(velocity_valid=False, enemy_measurement_velocity=(0.0, 0.0, 0.0))
+    policy = RMPCPolicy(rmpc_config=FAST_RMPC_CONFIG)
+    policy.act(np.zeros(16), info)
+    assert policy.last_initialization_mode == "pursuit"
+
+
+def test_initialization_mode_none_during_standby():
+    policy = RMPCPolicy(rmpc_config=FAST_RMPC_CONFIG)
+    policy.act(np.zeros(16), _undetected_info())
+    assert policy.last_initialization_mode is None
+
+
+def test_cem_optimize_receives_non_none_init_mean(monkeypatch):
+    """Focused mock test: cem_optimize must be called with a non-None,
+    correctly-shaped init_mean derived from the Lead/pursuit direction."""
+    captured = {}
+    original_cem_optimize = rmpc_policy_module.cem_optimize
+
+    def spy_cem_optimize(*args, **kwargs):
+        captured["init_mean"] = kwargs.get("init_mean")
+        return original_cem_optimize(*args, **kwargs)
+
+    monkeypatch.setattr(rmpc_policy_module, "cem_optimize", spy_cem_optimize)
+    policy = RMPCPolicy(rmpc_config=FAST_RMPC_CONFIG)
+    info = _detected_info(enemy_measurement=(20.0, 0.0, 0.0), enemy_measurement_velocity=(1.0, 0.0, 0.0),
+                           velocity_valid=True, defender_pos=(0.0, 0.0, 0.0))
+    policy.act(np.zeros(16), info)
+
+    assert captured["init_mean"] is not None
+    assert captured["init_mean"].shape == (FAST_RMPC_CONFIG.horizon, 3)
+    # All rows identical (nominal direction repeated over the horizon, no
+    # per-timestep warm-start yet).
+    assert np.allclose(captured["init_mean"], captured["init_mean"][0])
+
+
+def test_initialization_unaffected_by_poisoned_ground_truth():
+    info_a = _detected_info()
+    info_b = _detected_info()
+    info_a["enemy_pos"] = np.array([999.0, 999.0, 999.0])
+    info_a["enemy_vel"] = np.array([-50.0, -50.0, -50.0])
+    info_b["enemy_pos"] = np.array([-1.0, -1.0, -1.0])
+    info_b["enemy_vel"] = np.array([50.0, 50.0, 50.0])
+
+    policy_a = RMPCPolicy(rmpc_config=FAST_RMPC_CONFIG)
+    policy_b = RMPCPolicy(rmpc_config=FAST_RMPC_CONFIG)
+    policy_a.act(np.zeros(16), info_a)
+    policy_b.act(np.zeros(16), info_b)
+
+    assert policy_a.last_initialization_mode == policy_b.last_initialization_mode
 
 
 if __name__ == "__main__":

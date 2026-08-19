@@ -25,6 +25,7 @@ import numpy as np
 
 from uav_defend.config.env_config import EnvConfig
 from uav_defend.policies.mpc.cem_optimizer import cem_optimize
+from uav_defend.policies.mpc.lead_init import solve_lead_direction
 from uav_defend.policies.mpc.rmpc_cost import evaluate_candidate
 
 VALID_GUIDANCE_MODES = (
@@ -80,8 +81,20 @@ class RMPCPolicy:
     It never reads from, seeds, or is seeded by any environment-owned RNG
     stream.
 
+    CEM nominal initialization (Section 11): before each CEM search, the
+    sampling mean is initialized -- NOT to zero/an unstructured Gaussian --
+    around the current measurement-based Lead-intercept DIRECTION
+    (`uav_defend.policies.mpc.lead_init.solve_lead_direction`), repeated
+    over the full horizon. If no valid velocity estimate or predictive
+    intercept solution exists (first-measurement step, no positive root,
+    etc.), the same helper's pure-pursuit fallback direction toward
+    `enemy_measurement` is used instead. No warm-start across timesteps is
+    implemented (each decision's CEM search is initialized independently).
+
     Diagnostics (NOT part of the returned action):
         last_guidance_mode: one of `VALID_GUIDANCE_MODES`.
+        last_initialization_mode: "lead" | "pursuit" | None (None only when
+            CEM did not run, e.g. standby/measurement_fallback).
         last_scenario_scores: dict[str, float] | None, per-scenario robust
             score of the finally selected control sequence.
         last_robust_score: float | None, `min` over `last_scenario_scores`.
@@ -110,6 +123,7 @@ class RMPCPolicy:
         self.last_best_sequence: np.ndarray | None = None
         self.last_objective_evaluations: int = 0
         self.last_decision_time_s: float | None = None
+        self.last_initialization_mode: str | None = None
 
     def reset(self) -> None:
         """
@@ -193,6 +207,10 @@ class RMPCPolicy:
             )
             return evaluation.robust_score
 
+        init_result = solve_lead_direction(hostile_pos0, hostile_vel0, defender_pos, self.config.v_d, self.config.eps)
+        self.last_initialization_mode = "lead" if init_result.guidance_mode == "lead" else "pursuit"
+        init_mean = np.tile(init_result.direction.astype(np.float64), (self.rmpc_config.horizon, 1))
+
         result = cem_optimize(
             objective=objective,
             horizon=self.rmpc_config.horizon,
@@ -200,7 +218,7 @@ class RMPCPolicy:
             elite_fraction=self.rmpc_config.elite_fraction,
             n_iterations=self.rmpc_config.cem_iterations,
             rng=self._rng,
-            init_mean=None,
+            init_mean=init_mean,
             initial_std=self.rmpc_config.cem_initial_std,
             min_std=self.rmpc_config.cem_min_std,
             sample_clip=self.rmpc_config.cem_sample_clip,

@@ -103,7 +103,13 @@ def score_trajectory(defender_positions: np.ndarray, hostile_positions: np.ndarr
                                     score=config.reward_intercept)
 
     dist_de_h = float(np.linalg.norm(defender_positions[horizon] - hostile_positions[horizon]))
-    fallback_score = config.reward_progress_scale * (dist_de_0 - dist_de_h) - dist_de_h
+    # Progress-only fallback: dist_de_0 is fixed across all candidates at a
+    # given decision, so maximizing (dist_de_0 - dist_de_h) is equivalent to
+    # minimizing terminal defender-hostile distance -- no additional
+    # `-dist_de_h` term is needed or included (that term would be an
+    # undeclared extra weight beyond `reward_progress_scale`, which is the
+    # ONLY tunable weight this objective introduces).
+    fallback_score = config.reward_progress_scale * (dist_de_0 - dist_de_h)
     return ScenarioOutcome(terminal_step=None, terminal_type=None, score=fallback_score)
 
 
