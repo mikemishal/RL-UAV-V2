@@ -1,0 +1,117 @@
+{
+  "generated_at_utc": "2026-08-19T05:50:54.791283+00:00",
+  "final_experiment_source_commit": "0070946dbb1d1e57f3127ad3347feae94d2818fd",
+  "posthoc_mobility_audit_commit": "6f52570e5be343a5923fb5c822e73e75151ef4ef",
+  "evidence_directories": {
+    "expanded_final_nominal": "results\\lead_residual_expanded_final_5000",
+    "hostile_evasion": "results\\expanded_robustness\\hostile_evasion",
+    "maneuverability": "results\\expanded_robustness\\maneuverability",
+    "measurement_noise": "results\\expanded_robustness\\measurement_noise",
+    "mobility": "results\\expanded_robustness\\mobility",
+    "detection_radius": "results\\expanded_robustness\\detection_radius",
+    "mobility_posthoc_audit": "results\\expanded_robustness\\mobility\\posthoc_audit"
+  },
+  "source_evidence_hashes": {
+    "lead_residual_expanded_final_5000": {
+      "episode_results.csv": "ab71ac35ff2ef323b0f8cfef32ec687910edd59019d424d7e43230c2b1ba8728",
+      "classical_summary.csv": "0fc14d517208e8668a4afa833326e493cd30bbe66064db71071e8af276498032",
+      "learned_seed_summary.csv": "9f12439c070f408b9dc844027ef7b04b6efe7b8fa08e12896ab001bb86585907",
+      "family_summary.csv": "c498c36e5f205459160beed68c8ba2e735d58be36a3b62dd6a87cb69e96dabbd",
+      "primary_comparisons.csv": "01d8d78fbf4d1b7539bd6ed04df01fbc1591c831652415d352b123139b075f19",
+      "secondary_comparisons.csv": "f1a5e6041890a323b34d2437f0076f0158d569ff134ba53e5c0ca917ffe8699b",
+      "lead_rescue_harm.csv": "1a554cdbc603bf10afcb284ff9b285921be18249e833e9f77fd14a5dd5d327f0",
+      "protocol_manifest.json": "79064317a46df6b7cfb724def8a97ae7d632272f0862b665e89f1f8cf4f9a628"
+    },
+    "hostile_evasion": {
+      "episode_results.csv": "833e3bc51be64c68276fad659173e1c6cfa1960926d5f8405b7c5008d287afbe",
+      "classical_summary.csv": "ef317ec40e013c120a858ccb6e27c90f105282bb7dd0dfd7e2d21d9839b42c5a",
+      "learned_seed_summary.csv": "d84261cb6585eafacb79110f649e8b59c7506177f141cfbcfd0e7ff57445a518",
+      "family_summary.csv": "06e5927a400fa934e636bb0315d1ed57ba2447d864f2006948246db0b71f9aa7",
+      "primary_comparisons.csv": "f97c7f99708c58ae9aae15ea1bd7e3d260c958d8c38208fb3732dedcc7430626",
+      "secondary_comparisons.csv": "0144365c11c2bf145031c4d876bf3a4134fb26ba3417aaf2697faf202bab725e",
+      "lead_rescue_harm.csv": "3f837eb3c922bf258b998f3b1e8f7be4a9ac95165f3f5f84f34d775a968e34dd",
+      "protocol_manifest.json": "f659276e686f3fae7273da710eda6bea76707c58d5321e3a0f9698ffc238ac57"
+    },
+    "maneuverability": {
+      "episode_results.csv": "f57a04de47b6292efeaa711b8f6b7a51d6a304b5c4996b1ac159acee5f88b976",
+      "classical_summary.csv": "c17485e6163e89a31c2f7190c4ac0d1b103d0ab025a84392afc0dfcd1f2b8854",
+      "learned_seed_summary.csv": "6f85e53dc69ecbbeb5d3496008c292a88b2b0c5af2aacef7cb92d3f7ec422779",
+      "family_summary.csv": "9db1462d5a517fc90d52ccd399b6f7c061813c46a70b9c1277002c0abf12297e",
+      "primary_comparisons.csv": "0a6f362938b697b3ca21c2c2072bf511164ce380497dc3064e82da0fab3f2531",
+      "secondary_comparisons.csv": "cf06afec00a441e89bca4a5f26cb9237541013bb36155310c0bad59b29a08482",
+      "lead_rescue_harm.csv": "d15315971d0397663ce9d517b970629c801ba593bce456315a354361193e82b4",
+      "representative_cell_summary.csv": "33ea57a9cfb6dddb20c1e5c78093877ec5a33d6105350f9467d957acfe091a5c",
+      "protocol_manifest.json": "2143394a3e4e5492b1b6297a92191efe340acf6abe68df4461d7f2face1d4f41"
+    },
+    "measurement_noise": {
+      "episode_results.csv": "664b0175db854996cb5cebc82d6a3cb99d353a675d60aa30d62bac84e485f25d",
+      "classical_summary.csv": "0b095cc658e24ac11ced8dbe21dbd9a87670f69de29df682b11344146ae696e8",
+      "learned_seed_summary.csv": "a16b298557fb2b28cc869c212a143e40e9487ea727f7b690e4066d0ec30606ff",
+      "family_summary.csv": "6492ba3cacfd29480341b07649c47d708b0be5aaa99798a918c2f7e678f522e5",
+      "primary_comparisons.csv": "f2786ba830caa8918f4f5b6dd36be3e9358944a5f9308e5455e39f55c5750561",
+      "secondary_comparisons.csv": "4720b4032529537127e74070380f80a6083aa8ac7843ad9b2de7fe81df044297",
+      "estimator_comparisons.csv": "8cd417041e35b9a37cccf6f593eb1b4da7b0178294fbcbf4ae9f4e0c062719bd",
+      "tracking_error_summary.csv": "53b63d632d03fcddc4745554703853a4e828553127b24353da1c81731397dc7e",
+      "lead_rescue_harm.csv": "94d729db15305bdbccfd313ee5dbda9f4064e63535efabb5731751110c649f51",
+      "protocol_manifest.json": "64d091e132ec16c518ce01661bb7195ad31631c6f3c09c47fdb13160eab585ad"
+    },
+    "mobility": {
+      "episode_results.csv": "99e216b3b341c1b2a922796fa8b6abb9320f2c050612c32a025196bd938d3cd2",
+      "classical_summary.csv": "8dbdb51287b9a1581493c17b8d37306ff465f4e9b92ab47e264d4424b9e34d3d",
+      "learned_seed_summary.csv": "6e9371afa53763521987c4c9274c943131e46d5ef8405457b7cfe81c6852046a",
+      "family_summary.csv": "9d5dc3033f32557f2823cd1b76943db37b4b418433db1cfcbfad57d233023690",
+      "primary_comparisons.csv": "9c568719c36af568a317923b1b989ed38cb7163ee6e39ece9fa493045b2595dd",
+      "secondary_comparisons.csv": "4402d9a182788a9d7a04d599cbbcd7103993b2415ea2e7429fc505b5082846bc",
+      "defender_speed_summary.csv": "9cdcd983e8d65b2765f8453451a3d78448b9071f3b0737e726e10872324e5f2b",
+      "hostile_speed_summary.csv": "b52af1c3880040194429313c5a05b0d6ee0df0f8a73753e5a71ba0f1e4ffd55e",
+      "feasibility_summary.csv": "dd3597f7b570411c9d344b047e9cd89793b4e8ef3564d9f74b653bc02386e15d",
+      "lead_rescue_harm.csv": "8c961d8da87452c0647da73acffb166652436b821cb0b503acd9f6d5ac243902",
+      "protocol_manifest.json": "f8c77cbf4d9931289278b7e4fecabfe2e7f7e8fb050822a5d4e714eb27281852"
+    },
+    "detection_radius": {
+      "episode_results.csv": "e8ca1666c6caca794698c1902ca33269f29198f2b344dfca606bcf0c5cee5820",
+      "classical_summary.csv": "457997da3fe475137076a484648ba2eaa2aa3b9994a94ff5d5eec7fd539eac1f",
+      "learned_seed_summary.csv": "4925002732efd5b99446022c3d38f1eb2288aac764daa29ac1c4ecdc06d822a6",
+      "family_summary.csv": "1663a1a537e478ed649639918001decf1ef408952d610cce1ef4e57ff2bcbd2a",
+      "primary_comparisons.csv": "189604ab9593cb6de1ccc67cb7b395c3b549bba5ea45da1240ad42e368731ee2",
+      "secondary_comparisons.csv": "130c2bb779cbfbef685da24019f6f6a6b54280411a9f2f413b4df40e8ba236be",
+      "representative_radius_summary.csv": "9e45e409e18de89a98233a9c73311affc928ac5df6755cf10ea93bac84f101b4",
+      "lead_rescue_harm.csv": "58ab318ca589ce220d345d1875981df11bf5c3197fc8e59e5cb6c9ecf67b218b",
+      "protocol_manifest.json": "13151a66b571b4b6d05e69fa44439c7b1cf1d9e94e3b5340fe0d8c2dfdcd212c"
+    }
+  },
+  "frozen_model_hashes": {
+    "direct_45": "3b7e37dcf94a90c484364127c8a594c06386fba389bed1735cac316ed34b6595",
+    "direct_46": "ceb4c652a84ab88616e8389ae4aa80b58ae5e323b3496ea2103dfe8c85c1b37c",
+    "direct_47": "ea38fe085ec6ea1cefa051ba08ee80d749f35b87b699a129bf9157d82ed4a334",
+    "kalman_45": "ddf16641a71b102cfb01d9928597ab0c43d11598cd2d0f4eb63932d80490f98e",
+    "kalman_46": "b22116eb659552a94c28bfb32cdef58d5630267eaa4654a7a87b4ab802234f07",
+    "kalman_47": "a9d7a3f39c3c63dab98cfcfbb68c117844c3ef1884a23a242a9d38cfa4f2152d",
+    "lr_ppo_55": "40c64c46cad7f97da8ecf1f59fcec856e68b3633a557c133116b64759933fc7b",
+    "lr_ppo_56": "e12753eafd357dbeb849126997373c4bd963d79079636a30a945c2fc3ae2c343",
+    "lr_ppo_57": "f7b54cdeaa2a4e760399df41a915cc7a5f5f134e567599f0e8a59a59427ff29a"
+  },
+  "generated_master_artifact_hashes": {
+    "data\\figure_detection_radius.csv": "4c7c30646ff0a6c8aed49daa5d62f856935396b7c6970a29947d689828c0ca4e",
+    "data\\figure_evasion.csv": "dab2d4deaede810a322f15a8f9db6d0e05f3494f1e2011f7ff7a18c775400fe5",
+    "data\\figure_maneuverability.csv": "3705d1d4b75a63bd7f8a0ad4fb3d1769789ed8aaf181a34f642699e7344dc3b5",
+    "data\\figure_measurement_noise.csv": "935c9a60a3476025966fd77287efa3b0cbafee697d0e1b4725864b0f8705d0fe",
+    "data\\figure_mobility.csv": "3d74a828ded9b50782abf6b2c5ab085b148c78107f3ddc845300d8db1a5d25b4",
+    "data\\kalman_tracking_error.csv": "6f8ee9f3050303879e14a482213c7c854afeb990300fd6cd9582c32714973dfd",
+    "data\\robustness_master.csv": "1f0750d896bc53fd0d079c54d1a752ace0182bb03eb214668c0b8e449b1d32a9",
+    "tables\\claim_evidence_matrix.csv": "cb33ec05b823c83c60f92f382f4b82d6e89b566f867b9a8325f549c6ddeca442",
+    "tables\\table_nominal_performance.csv": "522fc72cc3ea90b9e65a7f85933679f13d7582bcaaf05a68400dd5f3cf83a620",
+    "tables\\table_nominal_performance.tex": "92d4043398c87d9cdc17f4380f73d79bc0d0f1efef68aef0fe1fa249ccfee9c6",
+    "tables\\table_robustness_highlights.csv": "0552e7a2dfcc275e7146f235a3688fa40efea30756be5f323a2d512e61b22e70",
+    "tables\\table_robustness_highlights.tex": "b3187fc9b6e4c45db9dde32985c9018229ef869c02c16042782d608a7d75817e"
+  },
+  "new_simulations_run": false,
+  "new_training_run": false,
+  "new_models_created": false,
+  "future_seeds_opened": false,
+  "historical_deprecated_evidence_not_used": [
+    "results/robustness/*",
+    "results/paper_evidence/*",
+    "results/paper_figures/*"
+  ]
+}
