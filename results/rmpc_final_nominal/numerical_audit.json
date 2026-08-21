@@ -1,0 +1,98 @@
+{
+  "greedy": {
+    "physical_limit_violations": 0,
+    "inf_count": 0,
+    "nan_count": 2088,
+    "expected_nan_count": 2088,
+    "unexpected_nan_count": 0
+  },
+  "pn": {
+    "physical_limit_violations": 0,
+    "inf_count": 0,
+    "nan_count": 2408,
+    "expected_nan_count": 2408,
+    "unexpected_nan_count": 0
+  },
+  "lead": {
+    "physical_limit_violations": 0,
+    "inf_count": 0,
+    "nan_count": 1324,
+    "expected_nan_count": 1324,
+    "unexpected_nan_count": 0
+  },
+  "ppo_seed45": {
+    "physical_limit_violations": 0,
+    "inf_count": 0,
+    "nan_count": 1114,
+    "expected_nan_count": 1114,
+    "unexpected_nan_count": 0
+  },
+  "ppo_seed46": {
+    "physical_limit_violations": 0,
+    "inf_count": 0,
+    "nan_count": 1070,
+    "expected_nan_count": 1070,
+    "unexpected_nan_count": 0
+  },
+  "ppo_seed47": {
+    "physical_limit_violations": 0,
+    "inf_count": 0,
+    "nan_count": 1590,
+    "expected_nan_count": 1590,
+    "unexpected_nan_count": 0
+  },
+  "ppo_kalman_seed45": {
+    "physical_limit_violations": 0,
+    "inf_count": 0,
+    "nan_count": 1516,
+    "expected_nan_count": 1516,
+    "unexpected_nan_count": 0
+  },
+  "ppo_kalman_seed46": {
+    "physical_limit_violations": 0,
+    "inf_count": 0,
+    "nan_count": 2064,
+    "expected_nan_count": 2064,
+    "unexpected_nan_count": 0
+  },
+  "ppo_kalman_seed47": {
+    "physical_limit_violations": 0,
+    "inf_count": 0,
+    "nan_count": 1392,
+    "expected_nan_count": 1392,
+    "unexpected_nan_count": 0
+  },
+  "lr_ppo_seed55": {
+    "physical_limit_violations": 0,
+    "inf_count": 0,
+    "nan_count": 1042,
+    "expected_nan_count": 1042,
+    "unexpected_nan_count": 0
+  },
+  "lr_ppo_seed56": {
+    "physical_limit_violations": 0,
+    "inf_count": 0,
+    "nan_count": 1062,
+    "expected_nan_count": 1062,
+    "unexpected_nan_count": 0
+  },
+  "lr_ppo_seed57": {
+    "physical_limit_violations": 0,
+    "inf_count": 0,
+    "nan_count": 1066,
+    "expected_nan_count": 1066,
+    "unexpected_nan_count": 0
+  },
+  "rmpc": {
+    "physical_limit_violations": 0,
+    "inf_count": 0,
+    "nan_count": 1796,
+    "expected_nan_count": 1796,
+    "unexpected_nan_count": 0
+  },
+  "_totals": {
+    "physical_limit_violations": 0,
+    "unexpected_nan_count": 0,
+    "inf_count": 0
+  }
+}
