@@ -1,0 +1,314 @@
+{
+  "condition": "strong_evasion",
+  "display_name": "Strong Reactive Evasion",
+  "env_config_direct": {
+    "L": 50.0,
+    "max_altitude": 30.0,
+    "enemy_spawn_altitude_min": 10.0,
+    "enemy_spawn_altitude_max": 30.0,
+    "max_steps": 2000,
+    "dt": 0.5,
+    "eps": 1e-08,
+    "v_s": 1.5,
+    "v_e": 12.0,
+    "rho": 0.85,
+    "sigma_a": 0.5,
+    "sigma_e": 0.15,
+    "weave_amplitude": 1.5,
+    "v_d": 18.0,
+    "defender_max_accel": 8.0,
+    "defender_max_turn_rate_deg": 90.0,
+    "defender_max_climb_rate": 6.0,
+    "defender_max_descent_rate": 6.0,
+    "enemy_max_accel": 6.0,
+    "enemy_max_turn_rate_deg": 75.0,
+    "enemy_max_climb_rate": 5.0,
+    "enemy_max_descent_rate": 5.0,
+    "enemy_evasion_enabled": true,
+    "enemy_evasion_radius": 20.0,
+    "enemy_evasion_gain": 1.0,
+    "reward_intercept": 100.0,
+    "reward_soldier_caught": -100.0,
+    "reward_unsafe_intercept": -150.0,
+    "reward_timeout": -100.0,
+    "reward_progress_scale": 5.0,
+    "reward_time_penalty": -0.05,
+    "reward_proximity_warning": -0.5,
+    "detection_radius": 15.0,
+    "intercept_radius": 2.5,
+    "threat_radius": 2.0,
+    "unsafe_intercept_radius": 3.5,
+    "defender_standby_until_detection": true,
+    "use_kalman_tracking": false,
+    "process_var": 1.0,
+    "measurement_var": 0.5,
+    "lead_time": 0.0
+  },
+  "env_config_kalman": {
+    "L": 50.0,
+    "max_altitude": 30.0,
+    "enemy_spawn_altitude_min": 10.0,
+    "enemy_spawn_altitude_max": 30.0,
+    "max_steps": 2000,
+    "dt": 0.5,
+    "eps": 1e-08,
+    "v_s": 1.5,
+    "v_e": 12.0,
+    "rho": 0.85,
+    "sigma_a": 0.5,
+    "sigma_e": 0.15,
+    "weave_amplitude": 1.5,
+    "v_d": 18.0,
+    "defender_max_accel": 8.0,
+    "defender_max_turn_rate_deg": 90.0,
+    "defender_max_climb_rate": 6.0,
+    "defender_max_descent_rate": 6.0,
+    "enemy_max_accel": 6.0,
+    "enemy_max_turn_rate_deg": 75.0,
+    "enemy_max_climb_rate": 5.0,
+    "enemy_max_descent_rate": 5.0,
+    "enemy_evasion_enabled": true,
+    "enemy_evasion_radius": 20.0,
+    "enemy_evasion_gain": 1.0,
+    "reward_intercept": 100.0,
+    "reward_soldier_caught": -100.0,
+    "reward_unsafe_intercept": -150.0,
+    "reward_timeout": -100.0,
+    "reward_progress_scale": 5.0,
+    "reward_time_penalty": -0.05,
+    "reward_proximity_warning": -0.5,
+    "detection_radius": 15.0,
+    "intercept_radius": 2.5,
+    "threat_radius": 2.0,
+    "unsafe_intercept_radius": 3.5,
+    "defender_standby_until_detection": true,
+    "use_kalman_tracking": true,
+    "process_var": 1.0,
+    "measurement_var": 0.5,
+    "lead_time": 0.0
+  },
+  "changed_fields": [
+    "enemy_evasion_gain"
+  ],
+  "seed_range": [
+    77000,
+    77999
+  ],
+  "n_seeds": 1000,
+  "n_instances": 13,
+  "detection_step_equality_all_instances": true,
+  "n_detection_step_comparisons": 13000,
+  "trajectory_audit_seeds": [
+    77000,
+    77001,
+    77002
+  ],
+  "trajectory_audit_representative_instances": [
+    "greedy",
+    "pn",
+    "lead",
+    "rmpc",
+    "ppo_seed45",
+    "ppo_kalman_seed45",
+    "lr_ppo_seed55"
+  ],
+  "trajectory_audit_results": {
+    "seed_77000_greedy": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_77000_pn": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_77000_lead": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_77000_rmpc": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_77000_ppo_seed45": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_77000_ppo_kalman_seed45": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_77000_lr_ppo_seed55": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_77001_greedy": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_77001_pn": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_77001_lead": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_77001_rmpc": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_77001_ppo_seed45": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_77001_ppo_kalman_seed45": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_77001_lr_ppo_seed55": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_77002_greedy": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_77002_pn": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_77002_lead": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_77002_rmpc": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_77002_ppo_seed45": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_77002_ppo_kalman_seed45": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_77002_lr_ppo_seed55": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    }
+  },
+  "numerical_audit": {
+    "greedy": {
+      "physical_limit_violations": 0,
+      "inf_count": 0,
+      "nan_count": 426,
+      "expected_nan_count": 426,
+      "unexpected_nan_count": 0
+    },
+    "pn": {
+      "physical_limit_violations": 0,
+      "inf_count": 0,
+      "nan_count": 474,
+      "expected_nan_count": 474,
+      "unexpected_nan_count": 0
+    },
+    "lead": {
+      "physical_limit_violations": 0,
+      "inf_count": 0,
+      "nan_count": 246,
+      "expected_nan_count": 246,
+      "unexpected_nan_count": 0
+    },
+    "ppo_seed45": {
+      "physical_limit_violations": 0,
+      "inf_count": 0,
+      "nan_count": 298,
+      "expected_nan_count": 298,
+      "unexpected_nan_count": 0
+    },
+    "ppo_seed46": {
+      "physical_limit_violations": 0,
+      "inf_count": 0,
+      "nan_count": 252,
+      "expected_nan_count": 252,
+      "unexpected_nan_count": 0
+    },
+    "ppo_seed47": {
+      "physical_limit_violations": 0,
+      "inf_count": 0,
+      "nan_count": 360,
+      "expected_nan_count": 360,
+      "unexpected_nan_count": 0
+    },
+    "ppo_kalman_seed45": {
+      "physical_limit_violations": 0,
+      "inf_count": 0,
+      "nan_count": 308,
+      "expected_nan_count": 308,
+      "unexpected_nan_count": 0
+    },
+    "ppo_kalman_seed46": {
+      "physical_limit_violations": 0,
+      "inf_count": 0,
+      "nan_count": 388,
+      "expected_nan_count": 388,
+      "unexpected_nan_count": 0
+    },
+    "ppo_kalman_seed47": {
+      "physical_limit_violations": 0,
+      "inf_count": 0,
+      "nan_count": 344,
+      "expected_nan_count": 344,
+      "unexpected_nan_count": 0
+    },
+    "lr_ppo_seed55": {
+      "physical_limit_violations": 0,
+      "inf_count": 0,
+      "nan_count": 226,
+      "expected_nan_count": 226,
+      "unexpected_nan_count": 0
+    },
+    "lr_ppo_seed56": {
+      "physical_limit_violations": 0,
+      "inf_count": 0,
+      "nan_count": 212,
+      "expected_nan_count": 212,
+      "unexpected_nan_count": 0
+    },
+    "lr_ppo_seed57": {
+      "physical_limit_violations": 0,
+      "inf_count": 0,
+      "nan_count": 186,
+      "expected_nan_count": 186,
+      "unexpected_nan_count": 0
+    },
+    "rmpc": {
+      "physical_limit_violations": 0,
+      "inf_count": 0,
+      "nan_count": 382,
+      "expected_nan_count": 382,
+      "unexpected_nan_count": 0
+    },
+    "_totals": {
+      "physical_limit_violations": 0,
+      "unexpected_nan_count": 0,
+      "inf_count": 0
+    }
+  },
+  "rmpc_diagnostics": {
+    "optimizer_fallback_count_total": 0,
+    "measurement_fallback_count_total": 0,
+    "lead_init_count_total": 237568,
+    "pursuit_init_count_total": 1061,
+    "n_policy_calls_total": 256514,
+    "n_post_detection_decisions_total": 238629,
+    "planning_time_diagnostic_NOT_FOR_PUBLICATION": {
+      "n": 238629,
+      "mean": 0.9102679008917856,
+      "median": 0.5898876000137534,
+      "p95": 2.160487419995479,
+      "max": 3.9075624000106473
+    }
+  }
+}

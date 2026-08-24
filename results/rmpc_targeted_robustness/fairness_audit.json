@@ -1,0 +1,454 @@
+{
+  "conditions": {
+    "strong_evasion": {
+      "detection_step_equality_all_instances": true,
+      "n_detection_step_comparisons": 13000,
+      "trajectory_audit_results": {
+        "seed_77000_greedy": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77000_pn": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77000_lead": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77000_rmpc": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77000_ppo_seed45": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77000_ppo_kalman_seed45": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77000_lr_ppo_seed55": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_greedy": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_pn": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_lead": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_rmpc": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_ppo_seed45": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_ppo_kalman_seed45": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_lr_ppo_seed55": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_greedy": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_pn": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_lead": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_rmpc": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_ppo_seed45": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_ppo_kalman_seed45": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_lr_ppo_seed55": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        }
+      }
+    },
+    "restrictive_dynamics": {
+      "detection_step_equality_all_instances": true,
+      "n_detection_step_comparisons": 13000,
+      "trajectory_audit_results": {
+        "seed_77000_greedy": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77000_pn": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77000_lead": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77000_rmpc": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77000_ppo_seed45": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77000_ppo_kalman_seed45": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77000_lr_ppo_seed55": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_greedy": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_pn": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_lead": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_rmpc": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_ppo_seed45": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_ppo_kalman_seed45": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_lr_ppo_seed55": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_greedy": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_pn": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_lead": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_rmpc": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_ppo_seed45": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_ppo_kalman_seed45": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_lr_ppo_seed55": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        }
+      }
+    },
+    "high_measurement_noise": {
+      "detection_step_equality_all_instances": true,
+      "n_detection_step_comparisons": 13000,
+      "trajectory_audit_results": {
+        "seed_77000_greedy": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77000_pn": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77000_lead": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77000_rmpc": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77000_ppo_seed45": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77000_ppo_kalman_seed45": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77000_lr_ppo_seed55": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_greedy": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_pn": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_lead": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_rmpc": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_ppo_seed45": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_ppo_kalman_seed45": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_lr_ppo_seed55": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_greedy": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_pn": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_lead": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_rmpc": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_ppo_seed45": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_ppo_kalman_seed45": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_lr_ppo_seed55": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        }
+      }
+    },
+    "hard_mobility": {
+      "detection_step_equality_all_instances": true,
+      "n_detection_step_comparisons": 13000,
+      "trajectory_audit_results": {
+        "seed_77000_greedy": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77000_pn": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77000_lead": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77000_rmpc": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77000_ppo_seed45": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77000_ppo_kalman_seed45": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77000_lr_ppo_seed55": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_greedy": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_pn": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_lead": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_rmpc": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_ppo_seed45": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_ppo_kalman_seed45": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_lr_ppo_seed55": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_greedy": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_pn": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_lead": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_rmpc": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_ppo_seed45": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_ppo_kalman_seed45": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_lr_ppo_seed55": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        }
+      }
+    },
+    "short_detection": {
+      "detection_step_equality_all_instances": true,
+      "n_detection_step_comparisons": 13000,
+      "trajectory_audit_results": {
+        "seed_77000_greedy": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77000_pn": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77000_lead": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77000_rmpc": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77000_ppo_seed45": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77000_ppo_kalman_seed45": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77000_lr_ppo_seed55": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_greedy": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_pn": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_lead": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_rmpc": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_ppo_seed45": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_ppo_kalman_seed45": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77001_lr_ppo_seed55": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_greedy": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_pn": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_lead": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_rmpc": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_ppo_seed45": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_ppo_kalman_seed45": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        },
+        "seed_77002_lr_ppo_seed55": {
+          "trajectory_matches_reference": true,
+          "detection_step_matches_reference": true
+        }
+      }
+    }
+  }
+}

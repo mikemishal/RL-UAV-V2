@@ -1,0 +1,65 @@
+{
+  "direct_45": {
+    "family": "PPO",
+    "training_root": 45,
+    "model_path": "C:\\Users\\mimishal\\OneDrive\\Documents\\UIC\\PhD\\Research\\uav-defense-3d-resubmission\\results\\training_post_detection_400k\\direct\\seed_45\\best_model.zip",
+    "sha256": "3b7e37dcf94a90c484364127c8a594c06386fba389bed1735cac316ed34b6595",
+    "verified_match": true
+  },
+  "direct_46": {
+    "family": "PPO",
+    "training_root": 46,
+    "model_path": "C:\\Users\\mimishal\\OneDrive\\Documents\\UIC\\PhD\\Research\\uav-defense-3d-resubmission\\results\\training_post_detection_400k\\direct\\seed_46\\best_model.zip",
+    "sha256": "ceb4c652a84ab88616e8389ae4aa80b58ae5e323b3496ea2103dfe8c85c1b37c",
+    "verified_match": true
+  },
+  "direct_47": {
+    "family": "PPO",
+    "training_root": 47,
+    "model_path": "C:\\Users\\mimishal\\OneDrive\\Documents\\UIC\\PhD\\Research\\uav-defense-3d-resubmission\\results\\training_post_detection_400k\\direct\\seed_47\\best_model.zip",
+    "sha256": "ea38fe085ec6ea1cefa051ba08ee80d749f35b87b699a129bf9157d82ed4a334",
+    "verified_match": true
+  },
+  "kalman_45": {
+    "family": "PPO-Kalman",
+    "training_root": 45,
+    "model_path": "C:\\Users\\mimishal\\OneDrive\\Documents\\UIC\\PhD\\Research\\uav-defense-3d-resubmission\\results\\training_post_detection_400k\\kalman\\seed_45\\best_model.zip",
+    "sha256": "ddf16641a71b102cfb01d9928597ab0c43d11598cd2d0f4eb63932d80490f98e",
+    "verified_match": true
+  },
+  "kalman_46": {
+    "family": "PPO-Kalman",
+    "training_root": 46,
+    "model_path": "C:\\Users\\mimishal\\OneDrive\\Documents\\UIC\\PhD\\Research\\uav-defense-3d-resubmission\\results\\training_post_detection_400k\\kalman\\seed_46\\best_model.zip",
+    "sha256": "b22116eb659552a94c28bfb32cdef58d5630267eaa4654a7a87b4ab802234f07",
+    "verified_match": true
+  },
+  "kalman_47": {
+    "family": "PPO-Kalman",
+    "training_root": 47,
+    "model_path": "C:\\Users\\mimishal\\OneDrive\\Documents\\UIC\\PhD\\Research\\uav-defense-3d-resubmission\\results\\training_post_detection_400k\\kalman\\seed_47\\best_model.zip",
+    "sha256": "a9d7a3f39c3c63dab98cfcfbb68c117844c3ef1884a23a242a9d38cfa4f2152d",
+    "verified_match": true
+  },
+  "lr_ppo_55": {
+    "family": "LR-PPO",
+    "training_root": 55,
+    "model_path": "C:\\Users\\mimishal\\OneDrive\\Documents\\UIC\\PhD\\Research\\uav-defense-3d-resubmission\\models\\lead_residual_post_detection\\seed_55\\best_model.zip",
+    "sha256": "40c64c46cad7f97da8ecf1f59fcec856e68b3633a557c133116b64759933fc7b",
+    "verified_match": true
+  },
+  "lr_ppo_56": {
+    "family": "LR-PPO",
+    "training_root": 56,
+    "model_path": "C:\\Users\\mimishal\\OneDrive\\Documents\\UIC\\PhD\\Research\\uav-defense-3d-resubmission\\models\\lead_residual_post_detection\\seed_56\\best_model.zip",
+    "sha256": "e12753eafd357dbeb849126997373c4bd963d79079636a30a945c2fc3ae2c343",
+    "verified_match": true
+  },
+  "lr_ppo_57": {
+    "family": "LR-PPO",
+    "training_root": 57,
+    "model_path": "C:\\Users\\mimishal\\OneDrive\\Documents\\UIC\\PhD\\Research\\uav-defense-3d-resubmission\\models\\lead_residual_post_detection\\seed_57\\best_model.zip",
+    "sha256": "f7b54cdeaa2a4e760399df41a915cc7a5f5f134e567599f0e8a59a59427ff29a",
+    "verified_match": true
+  }
+}

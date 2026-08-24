@@ -1,0 +1,499 @@
+{
+  "conditions": {
+    "strong_evasion": {
+      "greedy": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 426,
+        "expected_nan_count": 426,
+        "unexpected_nan_count": 0
+      },
+      "pn": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 474,
+        "expected_nan_count": 474,
+        "unexpected_nan_count": 0
+      },
+      "lead": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 246,
+        "expected_nan_count": 246,
+        "unexpected_nan_count": 0
+      },
+      "ppo_seed45": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 298,
+        "expected_nan_count": 298,
+        "unexpected_nan_count": 0
+      },
+      "ppo_seed46": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 252,
+        "expected_nan_count": 252,
+        "unexpected_nan_count": 0
+      },
+      "ppo_seed47": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 360,
+        "expected_nan_count": 360,
+        "unexpected_nan_count": 0
+      },
+      "ppo_kalman_seed45": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 308,
+        "expected_nan_count": 308,
+        "unexpected_nan_count": 0
+      },
+      "ppo_kalman_seed46": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 388,
+        "expected_nan_count": 388,
+        "unexpected_nan_count": 0
+      },
+      "ppo_kalman_seed47": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 344,
+        "expected_nan_count": 344,
+        "unexpected_nan_count": 0
+      },
+      "lr_ppo_seed55": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 226,
+        "expected_nan_count": 226,
+        "unexpected_nan_count": 0
+      },
+      "lr_ppo_seed56": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 212,
+        "expected_nan_count": 212,
+        "unexpected_nan_count": 0
+      },
+      "lr_ppo_seed57": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 186,
+        "expected_nan_count": 186,
+        "unexpected_nan_count": 0
+      },
+      "rmpc": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 382,
+        "expected_nan_count": 382,
+        "unexpected_nan_count": 0
+      },
+      "_totals": {
+        "physical_limit_violations": 0,
+        "unexpected_nan_count": 0,
+        "inf_count": 0
+      }
+    },
+    "restrictive_dynamics": {
+      "greedy": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 776,
+        "expected_nan_count": 776,
+        "unexpected_nan_count": 0
+      },
+      "pn": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 822,
+        "expected_nan_count": 822,
+        "unexpected_nan_count": 0
+      },
+      "lead": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 688,
+        "expected_nan_count": 688,
+        "unexpected_nan_count": 0
+      },
+      "ppo_seed45": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 980,
+        "expected_nan_count": 980,
+        "unexpected_nan_count": 0
+      },
+      "ppo_seed46": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 950,
+        "expected_nan_count": 950,
+        "unexpected_nan_count": 0
+      },
+      "ppo_seed47": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 704,
+        "expected_nan_count": 704,
+        "unexpected_nan_count": 0
+      },
+      "ppo_kalman_seed45": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 786,
+        "expected_nan_count": 786,
+        "unexpected_nan_count": 0
+      },
+      "ppo_kalman_seed46": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 818,
+        "expected_nan_count": 818,
+        "unexpected_nan_count": 0
+      },
+      "ppo_kalman_seed47": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 856,
+        "expected_nan_count": 856,
+        "unexpected_nan_count": 0
+      },
+      "lr_ppo_seed55": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 602,
+        "expected_nan_count": 602,
+        "unexpected_nan_count": 0
+      },
+      "lr_ppo_seed56": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 630,
+        "expected_nan_count": 630,
+        "unexpected_nan_count": 0
+      },
+      "lr_ppo_seed57": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 710,
+        "expected_nan_count": 710,
+        "unexpected_nan_count": 0
+      },
+      "rmpc": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 656,
+        "expected_nan_count": 656,
+        "unexpected_nan_count": 0
+      },
+      "_totals": {
+        "physical_limit_violations": 0,
+        "unexpected_nan_count": 0,
+        "inf_count": 0
+      }
+    },
+    "high_measurement_noise": {
+      "greedy": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 592,
+        "expected_nan_count": 592,
+        "unexpected_nan_count": 0
+      },
+      "pn": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 718,
+        "expected_nan_count": 718,
+        "unexpected_nan_count": 0
+      },
+      "lead": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 540,
+        "expected_nan_count": 540,
+        "unexpected_nan_count": 0
+      },
+      "ppo_seed45": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 302,
+        "expected_nan_count": 302,
+        "unexpected_nan_count": 0
+      },
+      "ppo_seed46": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 292,
+        "expected_nan_count": 292,
+        "unexpected_nan_count": 0
+      },
+      "ppo_seed47": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 392,
+        "expected_nan_count": 392,
+        "unexpected_nan_count": 0
+      },
+      "ppo_kalman_seed45": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 336,
+        "expected_nan_count": 336,
+        "unexpected_nan_count": 0
+      },
+      "ppo_kalman_seed46": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 424,
+        "expected_nan_count": 424,
+        "unexpected_nan_count": 0
+      },
+      "ppo_kalman_seed47": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 352,
+        "expected_nan_count": 352,
+        "unexpected_nan_count": 0
+      },
+      "lr_ppo_seed55": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 396,
+        "expected_nan_count": 396,
+        "unexpected_nan_count": 0
+      },
+      "lr_ppo_seed56": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 510,
+        "expected_nan_count": 510,
+        "unexpected_nan_count": 0
+      },
+      "lr_ppo_seed57": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 424,
+        "expected_nan_count": 424,
+        "unexpected_nan_count": 0
+      },
+      "rmpc": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 946,
+        "expected_nan_count": 946,
+        "unexpected_nan_count": 0
+      },
+      "_totals": {
+        "physical_limit_violations": 0,
+        "unexpected_nan_count": 0,
+        "inf_count": 0
+      }
+    },
+    "hard_mobility": {
+      "greedy": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 944,
+        "expected_nan_count": 944,
+        "unexpected_nan_count": 0
+      },
+      "pn": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 1358,
+        "expected_nan_count": 1358,
+        "unexpected_nan_count": 0
+      },
+      "lead": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 1006,
+        "expected_nan_count": 1006,
+        "unexpected_nan_count": 0
+      },
+      "ppo_seed45": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 1118,
+        "expected_nan_count": 1118,
+        "unexpected_nan_count": 0
+      },
+      "ppo_seed46": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 1190,
+        "expected_nan_count": 1190,
+        "unexpected_nan_count": 0
+      },
+      "ppo_seed47": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 1238,
+        "expected_nan_count": 1238,
+        "unexpected_nan_count": 0
+      },
+      "ppo_kalman_seed45": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 1088,
+        "expected_nan_count": 1088,
+        "unexpected_nan_count": 0
+      },
+      "ppo_kalman_seed46": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 696,
+        "expected_nan_count": 696,
+        "unexpected_nan_count": 0
+      },
+      "ppo_kalman_seed47": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 1276,
+        "expected_nan_count": 1276,
+        "unexpected_nan_count": 0
+      },
+      "lr_ppo_seed55": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 832,
+        "expected_nan_count": 832,
+        "unexpected_nan_count": 0
+      },
+      "lr_ppo_seed56": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 812,
+        "expected_nan_count": 812,
+        "unexpected_nan_count": 0
+      },
+      "lr_ppo_seed57": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 876,
+        "expected_nan_count": 876,
+        "unexpected_nan_count": 0
+      },
+      "rmpc": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 614,
+        "expected_nan_count": 614,
+        "unexpected_nan_count": 0
+      },
+      "_totals": {
+        "physical_limit_violations": 0,
+        "unexpected_nan_count": 0,
+        "inf_count": 0
+      }
+    },
+    "short_detection": {
+      "greedy": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 838,
+        "expected_nan_count": 838,
+        "unexpected_nan_count": 0
+      },
+      "pn": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 888,
+        "expected_nan_count": 888,
+        "unexpected_nan_count": 0
+      },
+      "lead": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 696,
+        "expected_nan_count": 696,
+        "unexpected_nan_count": 0
+      },
+      "ppo_seed45": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 764,
+        "expected_nan_count": 764,
+        "unexpected_nan_count": 0
+      },
+      "ppo_seed46": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 732,
+        "expected_nan_count": 732,
+        "unexpected_nan_count": 0
+      },
+      "ppo_seed47": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 932,
+        "expected_nan_count": 932,
+        "unexpected_nan_count": 0
+      },
+      "ppo_kalman_seed45": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 880,
+        "expected_nan_count": 880,
+        "unexpected_nan_count": 0
+      },
+      "ppo_kalman_seed46": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 898,
+        "expected_nan_count": 898,
+        "unexpected_nan_count": 0
+      },
+      "ppo_kalman_seed47": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 828,
+        "expected_nan_count": 828,
+        "unexpected_nan_count": 0
+      },
+      "lr_ppo_seed55": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 668,
+        "expected_nan_count": 668,
+        "unexpected_nan_count": 0
+      },
+      "lr_ppo_seed56": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 696,
+        "expected_nan_count": 696,
+        "unexpected_nan_count": 0
+      },
+      "lr_ppo_seed57": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 676,
+        "expected_nan_count": 676,
+        "unexpected_nan_count": 0
+      },
+      "rmpc": {
+        "physical_limit_violations": 0,
+        "inf_count": 0,
+        "nan_count": 822,
+        "expected_nan_count": 822,
+        "unexpected_nan_count": 0
+      },
+      "_totals": {
+        "physical_limit_violations": 0,
+        "unexpected_nan_count": 0,
+        "inf_count": 0
+      }
+    }
+  },
+  "_grand_totals": {
+    "physical_limit_violations": 0,
+    "unexpected_nan_count": 0,
+    "inf_count": 0
+  }
+}
