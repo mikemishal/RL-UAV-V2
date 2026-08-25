@@ -893,6 +893,7 @@ def _git_branch() -> str:
         return "unknown"
 
 
+PAPER_EVIDENCE_BASE_COMMIT = "e82a188a09e14d3f101f27ef954fbb8721fb3725"
 NOMINAL_RESULTS_COMMIT = "b0f952f"
 TARGETED_ROBUSTNESS_RESULTS_COMMIT = "e82a188"
 RMPC_TUNING_RESULTS_COMMIT = "ed4124c"
@@ -984,7 +985,6 @@ def build_artifact_audit(pytest_passed: bool, git_diff_clean: bool, git_status_c
 # Orchestration
 # =============================================================================
 def main() -> None:
-    base_commit = _git_commit()
     pv = build_paper_values()
 
     (OUTPUT_ROOT / "tables").mkdir(parents=True, exist_ok=True)
@@ -1032,7 +1032,7 @@ def main() -> None:
     (OUTPUT_ROOT / "reports" / "evidence_summary.md").write_text(build_evidence_summary(pv))
     (OUTPUT_ROOT / "reports" / "statistical_summary.md").write_text(build_statistical_summary(pv))
 
-    manifest = build_evidence_manifest(pv, base_commit, table_hashes, figure_hashes,
+    manifest = build_evidence_manifest(pv, PAPER_EVIDENCE_BASE_COMMIT, table_hashes, figure_hashes,
                                         paper_values_hash, claims_ledger_hash)
     (OUTPUT_ROOT / "evidence_manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True, default=str))
 
