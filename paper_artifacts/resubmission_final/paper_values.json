@@ -1,0 +1,1179 @@
+{
+  "nominal": {
+    "differences": {
+      "LR-PPO - Lead": {
+        "ci_high_pp": 3.5666666666666624,
+        "ci_low_pp": 1.766666666666672,
+        "difference_pp": 2.673333333333328,
+        "resolution": "resolved positive"
+      },
+      "LR-PPO - PPO": {
+        "ci_high_pp": 5.113500000000001,
+        "ci_low_pp": -0.2733333333333257,
+        "difference_pp": 2.0133333333333225,
+        "resolution": "unresolved"
+      },
+      "LR-PPO - RMPC": {
+        "ci_high_pp": 8.486666666666665,
+        "ci_low_pp": 6.306666666666672,
+        "difference_pp": 7.393333333333329,
+        "resolution": "resolved positive"
+      },
+      "PPO - Greedy": {
+        "ci_high_pp": 10.859999999999992,
+        "ci_low_pp": 5.220000000000002,
+        "difference_pp": 8.300000000000008,
+        "resolution": "resolved positive"
+      },
+      "PPO - Lead": {
+        "ci_high_pp": 3.066666666666662,
+        "ci_low_pp": -2.4399999999999977,
+        "difference_pp": 0.660000000000005,
+        "resolution": "unresolved"
+      },
+      "PPO - PN": {
+        "ci_high_pp": 14.093333333333335,
+        "ci_low_pp": 8.320000000000006,
+        "difference_pp": 11.50000000000001,
+        "resolution": "resolved positive"
+      },
+      "PPO-Kalman - PPO": {
+        "ci_high_pp": 1.7000000000000015,
+        "ci_low_pp": -9.807000000000004,
+        "difference_pp": -3.99333333333333,
+        "resolution": "unresolved"
+      },
+      "RMPC - Lead": {
+        "ci_high_pp": -3.520000000000001,
+        "ci_low_pp": -5.93999999999999,
+        "difference_pp": -4.720000000000002,
+        "resolution": "resolved negative"
+      },
+      "RMPC - PPO": {
+        "ci_high_pp": -2.219500000000004,
+        "ci_low_pp": -7.906833333333337,
+        "difference_pp": -5.380000000000007,
+        "resolution": "resolved negative"
+      }
+    },
+    "families": {
+      "Greedy": {
+        "ci_high": 0.8022403833766631,
+        "ci_low": 0.7797125070105357,
+        "n_roots": 1,
+        "per_root_rates": [
+          0.7912
+        ],
+        "root_sd": 0.0,
+        "success_rate": 0.7912
+      },
+      "LR-PPO": {
+        "ci_high": 0.9017333333333334,
+        "ci_low": 0.8867333333333334,
+        "n_roots": 3,
+        "per_root_rates": [
+          0.8958,
+          0.8938,
+          0.8934
+        ],
+        "root_sd": 0.0012858201014657,
+        "success_rate": 0.8943333333333333
+      },
+      "Lead": {
+        "ci_high": 0.8767127780018491,
+        "ci_low": 0.8579228075281451,
+        "n_roots": 1,
+        "per_root_rates": [
+          0.8676
+        ],
+        "root_sd": 0.0,
+        "success_rate": 0.8676
+      },
+      "PN": {
+        "ci_high": 0.770849526491863,
+        "ci_low": 0.7471524968198194,
+        "n_roots": 1,
+        "per_root_rates": [
+          0.7592
+        ],
+        "root_sd": 0.0,
+        "success_rate": 0.7592
+      },
+      "PPO": {
+        "ci_high": 0.8962,
+        "ci_low": 0.8432,
+        "n_roots": 3,
+        "per_root_rates": [
+          0.8886,
+          0.893,
+          0.841
+        ],
+        "root_sd": 0.0288360885003497,
+        "success_rate": 0.8742000000000001
+      },
+      "PPO-Kalman": {
+        "ci_high": 0.8623333333333333,
+        "ci_low": 0.7952,
+        "n_roots": 3,
+        "per_root_rates": [
+          0.8484,
+          0.7936,
+          0.8608
+        ],
+        "root_sd": 0.0357599403429778,
+        "success_rate": 0.8342666666666666
+      },
+      "RMPC": {
+        "ci_high": 0.8307924799998928,
+        "ci_low": 0.8095155765937146,
+        "n_roots": 1,
+        "per_root_rates": [
+          0.8204
+        ],
+        "root_sd": 0.0,
+        "success_rate": 0.8204
+      }
+    },
+    "instances": {
+      "greedy": {
+        "ci_high": 0.8022403833766631,
+        "ci_low": 0.7797125070105357,
+        "family": "Greedy",
+        "n": 5000,
+        "success_rate": 0.7912,
+        "successes": 3956,
+        "training_seed": null
+      },
+      "lead": {
+        "ci_high": 0.8767127780018491,
+        "ci_low": 0.8579228075281451,
+        "family": "Lead",
+        "n": 5000,
+        "success_rate": 0.8676,
+        "successes": 4338,
+        "training_seed": null
+      },
+      "lr_ppo_seed55": {
+        "ci_high": 0.9039667657467156,
+        "ci_low": 0.8870255213935774,
+        "family": "LR-PPO",
+        "n": 5000,
+        "success_rate": 0.8958,
+        "successes": 4479,
+        "training_seed": 55
+      },
+      "lr_ppo_seed56": {
+        "ci_high": 0.9020395092370772,
+        "ci_low": 0.884955848710996,
+        "family": "LR-PPO",
+        "n": 5000,
+        "success_rate": 0.8938,
+        "successes": 4469,
+        "training_seed": 56
+      },
+      "lr_ppo_seed57": {
+        "ci_high": 0.9016539437832868,
+        "ci_low": 0.8845420283263423,
+        "family": "LR-PPO",
+        "n": 5000,
+        "success_rate": 0.8934,
+        "successes": 4467,
+        "training_seed": 57
+      },
+      "pn": {
+        "ci_high": 0.770849526491863,
+        "ci_low": 0.7471524968198194,
+        "family": "PN",
+        "n": 5000,
+        "success_rate": 0.7592,
+        "successes": 3796,
+        "training_seed": null
+      },
+      "ppo_kalman_seed45": {
+        "ci_high": 0.8580729248702013,
+        "ci_low": 0.8381921404144832,
+        "family": "PPO-Kalman",
+        "n": 5000,
+        "success_rate": 0.8484,
+        "successes": 4242,
+        "training_seed": 45
+      },
+      "ppo_kalman_seed46": {
+        "ci_high": 0.8045906468219557,
+        "ci_low": 0.7821585585959068,
+        "family": "PPO-Kalman",
+        "n": 5000,
+        "success_rate": 0.7936,
+        "successes": 3968,
+        "training_seed": 46
+      },
+      "ppo_kalman_seed47": {
+        "ci_high": 0.870118082093519,
+        "ci_low": 0.8509279441829278,
+        "family": "PPO-Kalman",
+        "n": 5000,
+        "success_rate": 0.8608,
+        "successes": 4304,
+        "training_seed": 47
+      },
+      "ppo_seed45": {
+        "ci_high": 0.8970242765080136,
+        "ci_low": 0.879579065540288,
+        "family": "PPO",
+        "n": 5000,
+        "success_rate": 0.8886,
+        "successes": 4443,
+        "training_seed": 45
+      },
+      "ppo_seed46": {
+        "ci_high": 0.9012683407191352,
+        "ci_low": 0.88412824555205,
+        "family": "PPO",
+        "n": 5000,
+        "success_rate": 0.893,
+        "successes": 4465,
+        "training_seed": 46
+      },
+      "ppo_seed47": {
+        "ci_high": 0.8508735413813664,
+        "ci_low": 0.8306028858921046,
+        "family": "PPO",
+        "n": 5000,
+        "success_rate": 0.841,
+        "successes": 4205,
+        "training_seed": 47
+      },
+      "rmpc": {
+        "ci_high": 0.8307924799998928,
+        "ci_low": 0.8095155765937146,
+        "family": "RMPC",
+        "n": 5000,
+        "success_rate": 0.8204,
+        "successes": 4102,
+        "training_seed": null
+      }
+    }
+  },
+  "replication": {
+    "Greedy": {
+      "delta_pp": 1.5000000000000013,
+      "new_success_rate": 0.7912,
+      "old_success_rate": 0.7762
+    },
+    "LR-PPO": {
+      "delta_pp": 0.6000000000000005,
+      "new_success_rate": 0.8943333333333333,
+      "old_success_rate": 0.8883333333333333
+    },
+    "Lead": {
+      "delta_pp": 0.9400000000000075,
+      "new_success_rate": 0.8676,
+      "old_success_rate": 0.8582
+    },
+    "PN": {
+      "delta_pp": 1.2399999999999967,
+      "new_success_rate": 0.7592,
+      "old_success_rate": 0.7468
+    },
+    "PPO": {
+      "delta_pp": 0.5933333333333457,
+      "new_success_rate": 0.8742000000000001,
+      "old_success_rate": 0.8682666666666666
+    },
+    "PPO-Kalman": {
+      "delta_pp": 0.1466666666666505,
+      "new_success_rate": 0.8342666666666666,
+      "old_success_rate": 0.8328000000000001
+    }
+  },
+  "rmpc_config": {
+    "candidate_id": "C1_FAST",
+    "cem_iterations": 3,
+    "config_hash": "7fe3b23b8b13880979852d7cd89a3a15ac7cdedfa9c503ed494a5a4f5d21b38f",
+    "controller_seed": 0,
+    "development_selection_rule": "validation safe-interception success count on seeds 71100-71199 only",
+    "elite_fraction": 0.2,
+    "frozen_for_final_evaluation": true,
+    "horizon": 4,
+    "population_size": 64
+  },
+  "robustness": {
+    "differences": {
+      "hard_mobility": {
+        "LR-PPO - Lead": {
+          "ci_high_pp": 11.866666666666664,
+          "ci_low_pp": 4.665833333333338,
+          "difference_pp": 8.299999999999997,
+          "resolution": "resolved positive"
+        },
+        "LR-PPO - PPO": {
+          "ci_high_pp": 21.46666666666667,
+          "ci_low_pp": 12.466666666666663,
+          "difference_pp": 17.099999999999994,
+          "resolution": "resolved positive"
+        },
+        "LR-PPO - RMPC": {
+          "ci_high_pp": -7.600000000000007,
+          "ci_low_pp": -15.09999999999999,
+          "difference_pp": -11.3,
+          "resolution": "resolved negative"
+        },
+        "RMPC - Lead": {
+          "ci_high_pp": 23.499999999999996,
+          "ci_low_pp": 15.700000000000005,
+          "difference_pp": 19.599999999999994,
+          "resolution": "resolved positive"
+        },
+        "RMPC - PPO": {
+          "ci_high_pp": 32.9,
+          "ci_low_pp": 23.96666666666667,
+          "difference_pp": 28.39999999999999,
+          "resolution": "resolved positive"
+        }
+      },
+      "high_measurement_noise": {
+        "LR-PPO - Lead": {
+          "ci_high_pp": 8.699999999999996,
+          "ci_low_pp": 0.5000000000000004,
+          "difference_pp": 4.833333333333334,
+          "resolution": "resolved positive"
+        },
+        "LR-PPO - PPO": {
+          "ci_high_pp": -1.29999999999999,
+          "ci_low_pp": -10.166666666666655,
+          "difference_pp": -5.733333333333324,
+          "resolution": "resolved negative"
+        },
+        "LR-PPO - RMPC": {
+          "ci_high_pp": 29.366666666666664,
+          "ci_low_pp": 20.733333333333327,
+          "difference_pp": 25.13333333333333,
+          "resolution": "resolved positive"
+        },
+        "RMPC - Lead": {
+          "ci_high_pp": -16.599999999999994,
+          "ci_low_pp": -24.0,
+          "difference_pp": -20.3,
+          "resolution": "resolved negative"
+        },
+        "RMPC - PPO": {
+          "ci_high_pp": -26.53333333333333,
+          "ci_low_pp": -34.93333333333333,
+          "difference_pp": -30.866666666666653,
+          "resolution": "resolved negative"
+        }
+      },
+      "nominal": {
+        "LR-PPO - Lead": {
+          "ci_high_pp": 3.5666666666666624,
+          "ci_low_pp": 1.766666666666672,
+          "difference_pp": 2.673333333333328,
+          "resolution": "resolved positive"
+        },
+        "LR-PPO - PPO": {
+          "ci_high_pp": 5.113500000000001,
+          "ci_low_pp": -0.2733333333333257,
+          "difference_pp": 2.0133333333333225,
+          "resolution": "unresolved"
+        },
+        "LR-PPO - RMPC": {
+          "ci_high_pp": 8.486666666666665,
+          "ci_low_pp": 6.306666666666672,
+          "difference_pp": 7.393333333333329,
+          "resolution": "resolved positive"
+        },
+        "RMPC - Lead": {
+          "ci_high_pp": -3.520000000000001,
+          "ci_low_pp": -5.93999999999999,
+          "difference_pp": -4.720000000000002,
+          "resolution": "resolved negative"
+        },
+        "RMPC - PPO": {
+          "ci_high_pp": -2.219500000000004,
+          "ci_low_pp": -7.906833333333337,
+          "difference_pp": -5.380000000000007,
+          "resolution": "resolved negative"
+        }
+      },
+      "restrictive_dynamics": {
+        "LR-PPO - Lead": {
+          "ci_high_pp": 6.034166666666656,
+          "ci_low_pp": -2.200000000000002,
+          "difference_pp": 2.0333333333333314,
+          "resolution": "unresolved"
+        },
+        "LR-PPO - PPO": {
+          "ci_high_pp": 18.633333333333336,
+          "ci_low_pp": 3.1000000000000028,
+          "difference_pp": 11.533333333333328,
+          "resolution": "resolved positive"
+        },
+        "LR-PPO - RMPC": {
+          "ci_high_pp": 4.399999999999993,
+          "ci_low_pp": -3.633333333333333,
+          "difference_pp": 0.43333333333333,
+          "resolution": "unresolved"
+        },
+        "RMPC - Lead": {
+          "ci_high_pp": 5.100000000000005,
+          "ci_low_pp": -2.0000000000000018,
+          "difference_pp": 1.6000000000000014,
+          "resolution": "unresolved"
+        },
+        "RMPC - PPO": {
+          "ci_high_pp": 17.899999999999995,
+          "ci_low_pp": 2.9000000000000026,
+          "difference_pp": 11.099999999999998,
+          "resolution": "resolved positive"
+        }
+      },
+      "short_detection": {
+        "LR-PPO - Lead": {
+          "ci_high_pp": 2.7000000000000024,
+          "ci_low_pp": -1.1333333333333415,
+          "difference_pp": 0.8000000000000007,
+          "resolution": "unresolved"
+        },
+        "LR-PPO - PPO": {
+          "ci_high_pp": 12.36666666666666,
+          "ci_low_pp": 1.7666666666666608,
+          "difference_pp": 6.466666666666665,
+          "resolution": "resolved positive"
+        },
+        "LR-PPO - RMPC": {
+          "ci_high_pp": 9.466666666666669,
+          "ci_low_pp": 4.733333333333334,
+          "difference_pp": 7.100000000000007,
+          "resolution": "resolved positive"
+        },
+        "RMPC - Lead": {
+          "ci_high_pp": -3.8000000000000034,
+          "ci_low_pp": -8.800000000000008,
+          "difference_pp": -6.300000000000006,
+          "resolution": "resolved negative"
+        },
+        "RMPC - PPO": {
+          "ci_high_pp": 5.399999999999993,
+          "ci_low_pp": -5.600000000000005,
+          "difference_pp": -0.6333333333333413,
+          "resolution": "unresolved"
+        }
+      },
+      "strong_evasion": {
+        "LR-PPO - Lead": {
+          "ci_high_pp": 4.200000000000004,
+          "ci_low_pp": -0.3333333333333299,
+          "difference_pp": 1.9000000000000017,
+          "resolution": "unresolved"
+        },
+        "LR-PPO - PPO": {
+          "ci_high_pp": 8.233333333333338,
+          "ci_low_pp": 1.4666666666666717,
+          "difference_pp": 4.766666666666675,
+          "resolution": "resolved positive"
+        },
+        "LR-PPO - RMPC": {
+          "ci_high_pp": 11.3,
+          "ci_low_pp": 6.066666666666675,
+          "difference_pp": 8.699999999999996,
+          "resolution": "resolved positive"
+        },
+        "RMPC - Lead": {
+          "ci_high_pp": -4.000000000000004,
+          "ci_low_pp": -9.599999999999998,
+          "difference_pp": -6.799999999999995,
+          "resolution": "resolved negative"
+        },
+        "RMPC - PPO": {
+          "ci_high_pp": -0.0,
+          "ci_low_pp": -7.666666666666666,
+          "difference_pp": -3.933333333333322,
+          "resolution": "unresolved"
+        }
+      }
+    },
+    "matrix": {
+      "hard_mobility": {
+        "Greedy": 0.528,
+        "LR-PPO": 0.58,
+        "Lead": 0.49700000000000005,
+        "PN": 0.321,
+        "PPO": 0.40900000000000003,
+        "PPO-Kalman": 0.49000000000000005,
+        "RMPC": 0.693
+      },
+      "high_measurement_noise": {
+        "Greedy": 0.704,
+        "LR-PPO": 0.7783333333333333,
+        "Lead": 0.73,
+        "PN": 0.6409999999999999,
+        "PPO": 0.8356666666666667,
+        "PPO-Kalman": 0.8146666666666667,
+        "RMPC": 0.527
+      },
+      "nominal": {
+        "Greedy": 0.7912,
+        "LR-PPO": 0.8943333333333334,
+        "Lead": 0.8676,
+        "PN": 0.7592,
+        "PPO": 0.8742000000000002,
+        "PPO-Kalman": 0.8342666666666666,
+        "RMPC": 0.8204
+      },
+      "restrictive_dynamics": {
+        "Greedy": 0.612,
+        "LR-PPO": 0.6763333333333335,
+        "Lead": 0.6560000000000001,
+        "PN": 0.589,
+        "PPO": 0.561,
+        "PPO-Kalman": 0.59,
+        "RMPC": 0.672
+      },
+      "short_detection": {
+        "Greedy": 0.581,
+        "LR-PPO": 0.66,
+        "Lead": 0.652,
+        "PN": 0.556,
+        "PPO": 0.5953333333333334,
+        "PPO-Kalman": 0.5656666666666667,
+        "RMPC": 0.589
+      },
+      "strong_evasion": {
+        "Greedy": 0.787,
+        "LR-PPO": 0.8960000000000001,
+        "Lead": 0.877,
+        "PN": 0.763,
+        "PPO": 0.8483333333333333,
+        "PPO-Kalman": 0.8266666666666667,
+        "RMPC": 0.809
+      }
+    },
+    "rmpc_diagnostics": {
+      "hard_mobility": {
+        "lead_init_count_total": 66134,
+        "measurement_fallback_count_total": 0,
+        "n_policy_calls_total": 84261,
+        "n_post_detection_decisions_total": 67134,
+        "optimizer_fallback_count_total": 0,
+        "planning_time_diagnostic_NOT_FOR_PUBLICATION": {
+          "max": 18686.35355520004,
+          "mean": 8.466568707905097,
+          "median": 0.4864094000076875,
+          "n": 67134,
+          "p95": 0.7895687250100308
+        },
+        "pursuit_init_count_total": 1000
+      },
+      "high_measurement_noise": {
+        "lead_init_count_total": 424364,
+        "measurement_fallback_count_total": 0,
+        "n_policy_calls_total": 541625,
+        "n_post_detection_decisions_total": 523925,
+        "optimizer_fallback_count_total": 0,
+        "planning_time_diagnostic_NOT_FOR_PUBLICATION": {
+          "max": 1588.225384999998,
+          "mean": 1.3260059034623188,
+          "median": 1.4976716000237502,
+          "n": 523925,
+          "p95": 2.3161511600017546
+        },
+        "pursuit_init_count_total": 99561
+      },
+      "restrictive_dynamics": {
+        "lead_init_count_total": 313422,
+        "measurement_fallback_count_total": 0,
+        "n_policy_calls_total": 332198,
+        "n_post_detection_decisions_total": 314498,
+        "optimizer_fallback_count_total": 0,
+        "planning_time_diagnostic_NOT_FOR_PUBLICATION": {
+          "max": 15773.290694900003,
+          "mean": 1.6743005155644939,
+          "median": 0.5225515000056475,
+          "n": 314498,
+          "p95": 1.988944079993233
+        },
+        "pursuit_init_count_total": 1076
+      },
+      "short_detection": {
+        "lead_init_count_total": 136820,
+        "measurement_fallback_count_total": 0,
+        "n_policy_calls_total": 401878,
+        "n_post_detection_decisions_total": 137689,
+        "optimizer_fallback_count_total": 0,
+        "planning_time_diagnostic_NOT_FOR_PUBLICATION": {
+          "max": 18873.310991999984,
+          "mean": 5.80587892657737,
+          "median": 0.48941219999687746,
+          "n": 137689,
+          "p95": 0.7167495399829931
+        },
+        "pursuit_init_count_total": 869
+      },
+      "strong_evasion": {
+        "lead_init_count_total": 237568,
+        "measurement_fallback_count_total": 0,
+        "n_policy_calls_total": 256514,
+        "n_post_detection_decisions_total": 238629,
+        "optimizer_fallback_count_total": 0,
+        "planning_time_diagnostic_NOT_FOR_PUBLICATION": {
+          "max": 3.9075624000106473,
+          "mean": 0.9102679008917856,
+          "median": 0.5898876000137534,
+          "n": 238629,
+          "p95": 2.160487419995479
+        },
+        "pursuit_init_count_total": 1061
+      }
+    },
+    "root_specific": {
+      "hard_mobility": {
+        "lr_ppo_seed55": 0.584,
+        "lr_ppo_seed56": 0.594,
+        "lr_ppo_seed57": 0.562,
+        "ppo_kalman_seed45": 0.456,
+        "ppo_kalman_seed46": 0.652,
+        "ppo_kalman_seed47": 0.362,
+        "ppo_seed45": 0.441,
+        "ppo_seed46": 0.405,
+        "ppo_seed47": 0.381
+      },
+      "high_measurement_noise": {
+        "lr_ppo_seed55": 0.802,
+        "lr_ppo_seed56": 0.745,
+        "lr_ppo_seed57": 0.788,
+        "ppo_kalman_seed45": 0.832,
+        "ppo_kalman_seed46": 0.788,
+        "ppo_kalman_seed47": 0.824,
+        "ppo_seed45": 0.849,
+        "ppo_seed46": 0.854,
+        "ppo_seed47": 0.804
+      },
+      "nominal": {
+        "lr_ppo_seed55": 0.8958,
+        "lr_ppo_seed56": 0.8938,
+        "lr_ppo_seed57": 0.8934,
+        "ppo_kalman_seed45": 0.8484,
+        "ppo_kalman_seed46": 0.7936,
+        "ppo_kalman_seed47": 0.8608,
+        "ppo_seed45": 0.8886,
+        "ppo_seed46": 0.893,
+        "ppo_seed47": 0.841
+      },
+      "restrictive_dynamics": {
+        "lr_ppo_seed55": 0.699,
+        "lr_ppo_seed56": 0.685,
+        "lr_ppo_seed57": 0.645,
+        "ppo_kalman_seed45": 0.607,
+        "ppo_kalman_seed46": 0.591,
+        "ppo_kalman_seed47": 0.572,
+        "ppo_seed45": 0.51,
+        "ppo_seed46": 0.525,
+        "ppo_seed47": 0.648
+      },
+      "short_detection": {
+        "lr_ppo_seed55": 0.666,
+        "lr_ppo_seed56": 0.652,
+        "lr_ppo_seed57": 0.662,
+        "ppo_kalman_seed45": 0.56,
+        "ppo_kalman_seed46": 0.551,
+        "ppo_kalman_seed47": 0.586,
+        "ppo_seed45": 0.618,
+        "ppo_seed46": 0.634,
+        "ppo_seed47": 0.534
+      },
+      "strong_evasion": {
+        "lr_ppo_seed55": 0.887,
+        "lr_ppo_seed56": 0.894,
+        "lr_ppo_seed57": 0.907,
+        "ppo_kalman_seed45": 0.846,
+        "ppo_kalman_seed46": 0.806,
+        "ppo_kalman_seed47": 0.828,
+        "ppo_seed45": 0.851,
+        "ppo_seed46": 0.874,
+        "ppo_seed47": 0.82
+      }
+    },
+    "terminal_outcomes": {
+      "hard_mobility": {
+        "greedy": {
+          "intercepted": 528,
+          "soldier_caught": 462,
+          "timeout": 0,
+          "unsafe_intercept": 10
+        },
+        "lead": {
+          "intercepted": 497,
+          "soldier_caught": 493,
+          "timeout": 0,
+          "unsafe_intercept": 10
+        },
+        "lr_ppo_seed55": {
+          "intercepted": 584,
+          "soldier_caught": 409,
+          "timeout": 0,
+          "unsafe_intercept": 7
+        },
+        "lr_ppo_seed56": {
+          "intercepted": 594,
+          "soldier_caught": 391,
+          "timeout": 0,
+          "unsafe_intercept": 15
+        },
+        "lr_ppo_seed57": {
+          "intercepted": 562,
+          "soldier_caught": 431,
+          "timeout": 0,
+          "unsafe_intercept": 7
+        },
+        "pn": {
+          "intercepted": 321,
+          "soldier_caught": 672,
+          "timeout": 0,
+          "unsafe_intercept": 7
+        },
+        "ppo_kalman_seed45": {
+          "intercepted": 456,
+          "soldier_caught": 538,
+          "timeout": 0,
+          "unsafe_intercept": 6
+        },
+        "ppo_kalman_seed46": {
+          "intercepted": 652,
+          "soldier_caught": 333,
+          "timeout": 0,
+          "unsafe_intercept": 15
+        },
+        "ppo_kalman_seed47": {
+          "intercepted": 362,
+          "soldier_caught": 634,
+          "timeout": 0,
+          "unsafe_intercept": 4
+        },
+        "ppo_seed45": {
+          "intercepted": 441,
+          "soldier_caught": 551,
+          "timeout": 0,
+          "unsafe_intercept": 8
+        },
+        "ppo_seed46": {
+          "intercepted": 405,
+          "soldier_caught": 588,
+          "timeout": 0,
+          "unsafe_intercept": 7
+        },
+        "ppo_seed47": {
+          "intercepted": 381,
+          "soldier_caught": 609,
+          "timeout": 0,
+          "unsafe_intercept": 10
+        },
+        "rmpc": {
+          "intercepted": 693,
+          "soldier_caught": 303,
+          "timeout": 0,
+          "unsafe_intercept": 4
+        }
+      },
+      "high_measurement_noise": {
+        "greedy": {
+          "intercepted": 704,
+          "soldier_caught": 284,
+          "timeout": 0,
+          "unsafe_intercept": 12
+        },
+        "lead": {
+          "intercepted": 730,
+          "soldier_caught": 257,
+          "timeout": 2,
+          "unsafe_intercept": 11
+        },
+        "lr_ppo_seed55": {
+          "intercepted": 802,
+          "soldier_caught": 184,
+          "timeout": 0,
+          "unsafe_intercept": 14
+        },
+        "lr_ppo_seed56": {
+          "intercepted": 745,
+          "soldier_caught": 236,
+          "timeout": 1,
+          "unsafe_intercept": 18
+        },
+        "lr_ppo_seed57": {
+          "intercepted": 788,
+          "soldier_caught": 196,
+          "timeout": 0,
+          "unsafe_intercept": 16
+        },
+        "pn": {
+          "intercepted": 641,
+          "soldier_caught": 346,
+          "timeout": 1,
+          "unsafe_intercept": 12
+        },
+        "ppo_kalman_seed45": {
+          "intercepted": 832,
+          "soldier_caught": 153,
+          "timeout": 0,
+          "unsafe_intercept": 15
+        },
+        "ppo_kalman_seed46": {
+          "intercepted": 788,
+          "soldier_caught": 181,
+          "timeout": 0,
+          "unsafe_intercept": 31
+        },
+        "ppo_kalman_seed47": {
+          "intercepted": 824,
+          "soldier_caught": 166,
+          "timeout": 0,
+          "unsafe_intercept": 10
+        },
+        "ppo_seed45": {
+          "intercepted": 849,
+          "soldier_caught": 131,
+          "timeout": 0,
+          "unsafe_intercept": 20
+        },
+        "ppo_seed46": {
+          "intercepted": 854,
+          "soldier_caught": 129,
+          "timeout": 0,
+          "unsafe_intercept": 17
+        },
+        "ppo_seed47": {
+          "intercepted": 804,
+          "soldier_caught": 185,
+          "timeout": 1,
+          "unsafe_intercept": 10
+        },
+        "rmpc": {
+          "intercepted": 527,
+          "soldier_caught": 438,
+          "timeout": 18,
+          "unsafe_intercept": 17
+        }
+      },
+      "nominal": {
+        "greedy": {
+          "intercepted": 3956,
+          "soldier_caught": 1006,
+          "timeout": 1,
+          "unsafe_intercept": 37
+        },
+        "lead": {
+          "intercepted": 4338,
+          "soldier_caught": 607,
+          "timeout": 0,
+          "unsafe_intercept": 55
+        },
+        "lr_ppo_seed55": {
+          "intercepted": 4479,
+          "soldier_caught": 469,
+          "timeout": 0,
+          "unsafe_intercept": 52
+        },
+        "lr_ppo_seed56": {
+          "intercepted": 4469,
+          "soldier_caught": 485,
+          "timeout": 0,
+          "unsafe_intercept": 46
+        },
+        "lr_ppo_seed57": {
+          "intercepted": 4467,
+          "soldier_caught": 485,
+          "timeout": 0,
+          "unsafe_intercept": 48
+        },
+        "pn": {
+          "intercepted": 3796,
+          "soldier_caught": 1147,
+          "timeout": 2,
+          "unsafe_intercept": 55
+        },
+        "ppo_kalman_seed45": {
+          "intercepted": 4242,
+          "soldier_caught": 661,
+          "timeout": 0,
+          "unsafe_intercept": 97
+        },
+        "ppo_kalman_seed46": {
+          "intercepted": 3968,
+          "soldier_caught": 861,
+          "timeout": 0,
+          "unsafe_intercept": 171
+        },
+        "ppo_kalman_seed47": {
+          "intercepted": 4304,
+          "soldier_caught": 656,
+          "timeout": 0,
+          "unsafe_intercept": 40
+        },
+        "ppo_seed45": {
+          "intercepted": 4443,
+          "soldier_caught": 488,
+          "timeout": 0,
+          "unsafe_intercept": 69
+        },
+        "ppo_seed46": {
+          "intercepted": 4465,
+          "soldier_caught": 429,
+          "timeout": 0,
+          "unsafe_intercept": 106
+        },
+        "ppo_seed47": {
+          "intercepted": 4205,
+          "soldier_caught": 730,
+          "timeout": 0,
+          "unsafe_intercept": 65
+        },
+        "rmpc": {
+          "intercepted": 4102,
+          "soldier_caught": 832,
+          "timeout": 0,
+          "unsafe_intercept": 66
+        }
+      },
+      "restrictive_dynamics": {
+        "greedy": {
+          "intercepted": 612,
+          "soldier_caught": 362,
+          "timeout": 3,
+          "unsafe_intercept": 23
+        },
+        "lead": {
+          "intercepted": 656,
+          "soldier_caught": 318,
+          "timeout": 0,
+          "unsafe_intercept": 26
+        },
+        "lr_ppo_seed55": {
+          "intercepted": 699,
+          "soldier_caught": 271,
+          "timeout": 2,
+          "unsafe_intercept": 28
+        },
+        "lr_ppo_seed56": {
+          "intercepted": 685,
+          "soldier_caught": 285,
+          "timeout": 2,
+          "unsafe_intercept": 28
+        },
+        "lr_ppo_seed57": {
+          "intercepted": 645,
+          "soldier_caught": 325,
+          "timeout": 1,
+          "unsafe_intercept": 29
+        },
+        "pn": {
+          "intercepted": 589,
+          "soldier_caught": 380,
+          "timeout": 7,
+          "unsafe_intercept": 24
+        },
+        "ppo_kalman_seed45": {
+          "intercepted": 607,
+          "soldier_caught": 368,
+          "timeout": 3,
+          "unsafe_intercept": 22
+        },
+        "ppo_kalman_seed46": {
+          "intercepted": 591,
+          "soldier_caught": 385,
+          "timeout": 2,
+          "unsafe_intercept": 22
+        },
+        "ppo_kalman_seed47": {
+          "intercepted": 572,
+          "soldier_caught": 403,
+          "timeout": 7,
+          "unsafe_intercept": 18
+        },
+        "ppo_seed45": {
+          "intercepted": 510,
+          "soldier_caught": 455,
+          "timeout": 12,
+          "unsafe_intercept": 23
+        },
+        "ppo_seed46": {
+          "intercepted": 525,
+          "soldier_caught": 443,
+          "timeout": 11,
+          "unsafe_intercept": 21
+        },
+        "ppo_seed47": {
+          "intercepted": 648,
+          "soldier_caught": 333,
+          "timeout": 2,
+          "unsafe_intercept": 17
+        },
+        "rmpc": {
+          "intercepted": 672,
+          "soldier_caught": 299,
+          "timeout": 2,
+          "unsafe_intercept": 27
+        }
+      },
+      "short_detection": {
+        "greedy": {
+          "intercepted": 581,
+          "soldier_caught": 332,
+          "timeout": 3,
+          "unsafe_intercept": 84
+        },
+        "lead": {
+          "intercepted": 652,
+          "soldier_caught": 259,
+          "timeout": 2,
+          "unsafe_intercept": 87
+        },
+        "lr_ppo_seed55": {
+          "intercepted": 666,
+          "soldier_caught": 248,
+          "timeout": 0,
+          "unsafe_intercept": 86
+        },
+        "lr_ppo_seed56": {
+          "intercepted": 652,
+          "soldier_caught": 259,
+          "timeout": 2,
+          "unsafe_intercept": 87
+        },
+        "lr_ppo_seed57": {
+          "intercepted": 662,
+          "soldier_caught": 251,
+          "timeout": 0,
+          "unsafe_intercept": 87
+        },
+        "pn": {
+          "intercepted": 556,
+          "soldier_caught": 359,
+          "timeout": 2,
+          "unsafe_intercept": 83
+        },
+        "ppo_kalman_seed45": {
+          "intercepted": 560,
+          "soldier_caught": 310,
+          "timeout": 2,
+          "unsafe_intercept": 128
+        },
+        "ppo_kalman_seed46": {
+          "intercepted": 551,
+          "soldier_caught": 310,
+          "timeout": 2,
+          "unsafe_intercept": 137
+        },
+        "ppo_kalman_seed47": {
+          "intercepted": 586,
+          "soldier_caught": 290,
+          "timeout": 1,
+          "unsafe_intercept": 123
+        },
+        "ppo_seed45": {
+          "intercepted": 618,
+          "soldier_caught": 259,
+          "timeout": 3,
+          "unsafe_intercept": 120
+        },
+        "ppo_seed46": {
+          "intercepted": 634,
+          "soldier_caught": 249,
+          "timeout": 1,
+          "unsafe_intercept": 116
+        },
+        "ppo_seed47": {
+          "intercepted": 534,
+          "soldier_caught": 335,
+          "timeout": 2,
+          "unsafe_intercept": 129
+        },
+        "rmpc": {
+          "intercepted": 589,
+          "soldier_caught": 301,
+          "timeout": 2,
+          "unsafe_intercept": 108
+        }
+      },
+      "strong_evasion": {
+        "greedy": {
+          "intercepted": 787,
+          "soldier_caught": 199,
+          "timeout": 1,
+          "unsafe_intercept": 13
+        },
+        "lead": {
+          "intercepted": 877,
+          "soldier_caught": 106,
+          "timeout": 0,
+          "unsafe_intercept": 17
+        },
+        "lr_ppo_seed55": {
+          "intercepted": 887,
+          "soldier_caught": 99,
+          "timeout": 0,
+          "unsafe_intercept": 14
+        },
+        "lr_ppo_seed56": {
+          "intercepted": 894,
+          "soldier_caught": 97,
+          "timeout": 0,
+          "unsafe_intercept": 9
+        },
+        "lr_ppo_seed57": {
+          "intercepted": 907,
+          "soldier_caught": 77,
+          "timeout": 0,
+          "unsafe_intercept": 16
+        },
+        "pn": {
+          "intercepted": 763,
+          "soldier_caught": 217,
+          "timeout": 0,
+          "unsafe_intercept": 20
+        },
+        "ppo_kalman_seed45": {
+          "intercepted": 846,
+          "soldier_caught": 139,
+          "timeout": 0,
+          "unsafe_intercept": 15
+        },
+        "ppo_kalman_seed46": {
+          "intercepted": 806,
+          "soldier_caught": 165,
+          "timeout": 0,
+          "unsafe_intercept": 29
+        },
+        "ppo_kalman_seed47": {
+          "intercepted": 828,
+          "soldier_caught": 167,
+          "timeout": 0,
+          "unsafe_intercept": 5
+        },
+        "ppo_seed45": {
+          "intercepted": 851,
+          "soldier_caught": 129,
+          "timeout": 1,
+          "unsafe_intercept": 19
+        },
+        "ppo_seed46": {
+          "intercepted": 874,
+          "soldier_caught": 105,
+          "timeout": 0,
+          "unsafe_intercept": 21
+        },
+        "ppo_seed47": {
+          "intercepted": 820,
+          "soldier_caught": 168,
+          "timeout": 0,
+          "unsafe_intercept": 12
+        },
+        "rmpc": {
+          "intercepted": 809,
+          "soldier_caught": 176,
+          "timeout": 0,
+          "unsafe_intercept": 15
+        }
+      }
+    }
+  }
+}
