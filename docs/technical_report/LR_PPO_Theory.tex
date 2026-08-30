@@ -1,0 +1,528 @@
+\documentclass[10pt]{article}
+
+% ============================================================
+% Packages
+% ============================================================
+\usepackage[letterpaper,margin=0.85in]{geometry}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{microtype}
+\usepackage{fancyhdr}
+\usepackage[hidelinks]{hyperref}
+
+% ============================================================
+% Typography and spacing
+% ============================================================
+\setlength{\parindent}{1.2em}
+\setlength{\parskip}{0pt}
+\setlength{\textfloatsep}{10pt}
+\setlength{\abovedisplayskip}{7pt}
+\setlength{\belowdisplayskip}{7pt}
+
+% ============================================================
+% Theorem environments
+%
+% Separate counters intentionally match the conference paper:
+% Lemma 1, Theorem 1, Corollary 1, Corollary 2.
+% ============================================================
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
+
+% ============================================================
+% Header / footer
+% ============================================================
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small Mishal and Koyuncu}
+\fancyhead[R]{\small LR-PPO Technical Report}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% ============================================================
+% Document
+% ============================================================
+\begin{document}
+
+\begin{center}
+
+{\LARGE\bfseries
+Hybrid Predictive Guidance with Residual Reinforcement Learning\\
+for Autonomous UAS Interception
+\par}
+
+\vspace{0.6em}
+
+{\large\bfseries
+Technical Report: Proofs of Theoretical Results
+\par}
+
+\vspace{1em}
+
+{\large
+Michael Mishal \qquad Erdem Koyuncu
+\par}
+
+\vspace{0.25em}
+
+{\normalsize
+Department of Electrical and Computer Engineering\\
+University of Illinois Chicago, Chicago, IL, USA\\
+\texttt{\{mmisha2, ekoyuncu\}@uic.edu}
+\par}
+
+\vspace{0.6em}
+
+{\small August 2026}
+
+\end{center}
+
+\vspace{0.6em}
+
+\begin{abstract}
+This technical report supplements the paper
+\emph{Hybrid Predictive Guidance with Residual Reinforcement Learning for
+Autonomous UAS Interception}. It provides detailed proofs of the geometric
+properties of the proposed Lead-Residual Proximal Policy Optimization
+(LR-PPO) guidance law. Specifically, the results establish orthogonality and
+norm bounds for the projected residual, an explicit bound on angular
+deviation from predictive Lead guidance, exact recovery of the nominal Lead
+direction for residuals with no orthogonal component, and a positive lower
+bound on alignment between the executed LR-PPO and Lead commands. These
+properties constrain the authority of the learned correction but do not imply
+closed-loop stability or global interception optimality.
+\end{abstract}
+
+
+% ============================================================
+% Theoretical statements
+% ============================================================
+\section*{Theoretical Properties}
+\label{sec:theoretical-results}
+
+Let \(u_t^{\mathrm{Lead}}\) denote the unit nominal Lead guidance direction.
+The PPO policy produces a raw residual \(r_t^{\mathrm{raw}}\), which is clipped
+to the unit ball:
+\[
+r_t=
+\begin{cases}
+\dfrac{r_t^{\mathrm{raw}}}{\|r_t^{\mathrm{raw}}\|},
+& \|r_t^{\mathrm{raw}}\|>1,\\[4pt]
+r_t^{\mathrm{raw}},
+& \text{otherwise}.
+\end{cases}
+\]
+Thus,
+\[
+\|r_t\|\leq1.
+\]
+
+The component of this residual orthogonal to Lead is
+\[
+r_t^\perp
+=
+r_t-
+\left(r_t^T u_t^{\mathrm{Lead}}\right)
+u_t^{\mathrm{Lead}},
+\]
+and the executed LR-PPO direction is
+\[
+u_t^{\mathrm{LR}}
+=
+\operatorname{normalize}
+\left(
+u_t^{\mathrm{Lead}}
++
+\tan(\theta_{\max})r_t^\perp
+\right),
+\]
+where
+\[
+\operatorname{normalize}(x)
+=
+\frac{x}{\|x\|},
+\qquad
+0<\theta_{\max}<\frac{\pi}{2}.
+\]
+The controller evaluated in the accompanying paper uses
+\(\theta_{\max}=30^\circ\).
+
+\begin{lemma}
+\label{lem:orthogonal_residual}
+Let \(u_t^{\mathrm{Lead}}\) be a unit Lead direction and let the clipped
+residual satisfy \(\|r_t\|\leq1\). Then
+\[
+r_t^\perp
+\perp
+u_t^{\mathrm{Lead}},
+\qquad
+\|r_t^\perp\|\leq1.
+\]
+\end{lemma}
+
+\begin{theorem}
+\label{thm:angular_bound}
+For
+\[
+u_t^{\mathrm{LR}}
+=
+\operatorname{normalize}
+\left(
+u_t^{\mathrm{Lead}}
++
+\tan(\theta_{\max})r_t^\perp
+\right),
+\]
+with \(0<\theta_{\max}<\pi/2\),
+\[
+\angle
+\left(
+u_t^{\mathrm{LR}},
+u_t^{\mathrm{Lead}}
+\right)
+\leq
+\theta_{\max}.
+\]
+\end{theorem}
+
+\begin{corollary}
+\label{cor:lead_recovery}
+If \(r_t^\perp=0\), then
+\[
+u_t^{\mathrm{LR}}
+=
+u_t^{\mathrm{Lead}}.
+\]
+Thus, zero, parallel, or anti-parallel residuals recover the nominal Lead
+direction exactly.
+\end{corollary}
+
+\begin{corollary}
+\label{cor:positive_alignment}
+The LR-PPO command always retains positive alignment with Lead:
+\[
+\left(u_t^{\mathrm{LR}}\right)^T
+u_t^{\mathrm{Lead}}
+\geq
+\cos(\theta_{\max})
+>
+0.
+\]
+For \(\theta_{\max}=30^\circ\),
+\[
+\cos(30^\circ)
+=
+\frac{\sqrt{3}}{2}
+\approx0.866.
+\]
+\end{corollary}
+
+These results constrain the learned controller geometrically: PPO may modify
+the predictive Lead command within the prescribed angular neighborhood, but
+it cannot arbitrarily overwrite or reverse the nominal guidance direction.
+
+
+% ============================================================
+% Proofs
+% ============================================================
+\section*{Proofs}
+
+\subsection*{Proof of Lemma~\ref{lem:orthogonal_residual}}
+
+Recall that
+\begin{equation}
+r_t^\perp
+=
+r_t-
+\left(r_t^T u_t^{\mathrm{Lead}}\right)
+u_t^{\mathrm{Lead}}.
+\label{eq:app_residual_projection}
+\end{equation}
+Since
+\(
+\|u_t^{\mathrm{Lead}}\|=1
+\),
+taking the inner product with the Lead direction gives
+\begin{align}
+\left(u_t^{\mathrm{Lead}}\right)^T r_t^\perp
+&=
+\left(u_t^{\mathrm{Lead}}\right)^T r_t
+-
+\left(r_t^T u_t^{\mathrm{Lead}}\right)
+\left(u_t^{\mathrm{Lead}}\right)^T
+u_t^{\mathrm{Lead}} \\
+&=
+r_t^T u_t^{\mathrm{Lead}}
+-
+r_t^T u_t^{\mathrm{Lead}} \\
+&=0.
+\end{align}
+Therefore,
+\begin{equation}
+r_t^\perp
+\perp
+u_t^{\mathrm{Lead}}.
+\label{eq:app_orthogonality}
+\end{equation}
+
+The residual can be decomposed into mutually orthogonal components:
+\begin{equation}
+r_t
+=
+r_t^\perp
++
+\left(r_t^T u_t^{\mathrm{Lead}}\right)
+u_t^{\mathrm{Lead}}.
+\end{equation}
+By the Pythagorean relation,
+\begin{equation}
+\|r_t\|^2
+=
+\|r_t^\perp\|^2
++
+\left(r_t^T u_t^{\mathrm{Lead}}\right)^2.
+\end{equation}
+Hence,
+\begin{equation}
+\|r_t^\perp\|^2
+\leq
+\|r_t\|^2.
+\end{equation}
+Since the residual is clipped to the unit ball,
+\(
+\|r_t\|\leq1
+\),
+so
+\begin{equation}
+\|r_t^\perp\|
+\leq
+\|r_t\|
+\leq1.
+\end{equation}
+This establishes both the orthogonality and norm-bound claims.
+
+
+\subsection*{Proof of Theorem~\ref{thm:angular_bound}}
+
+Define the unnormalized LR-PPO command
+\begin{equation}
+\tilde u_t^{\mathrm{LR}}
+=
+u_t^{\mathrm{Lead}}
++
+\tan(\theta_{\max})r_t^\perp.
+\label{eq:app_lr_command}
+\end{equation}
+The executed command is
+\begin{equation}
+u_t^{\mathrm{LR}}
+=
+\frac{\tilde u_t^{\mathrm{LR}}}
+{\|\tilde u_t^{\mathrm{LR}}\|}.
+\label{eq:app_lr_normalized}
+\end{equation}
+
+Let
+\begin{equation}
+\phi_t
+=
+\angle
+\left(
+u_t^{\mathrm{LR}},
+u_t^{\mathrm{Lead}}
+\right).
+\end{equation}
+Normalization changes only magnitude, so \(\phi_t\) is also the angle between
+\(\tilde u_t^{\mathrm{LR}}\) and \(u_t^{\mathrm{Lead}}\).
+
+Using Lemma~\ref{lem:orthogonal_residual},
+\begin{align}
+\left(u_t^{\mathrm{Lead}}\right)^T
+\tilde u_t^{\mathrm{LR}}
+&=
+\left(u_t^{\mathrm{Lead}}\right)^T
+u_t^{\mathrm{Lead}}
++
+\tan(\theta_{\max})
+\left(u_t^{\mathrm{Lead}}\right)^T
+r_t^\perp \\
+&=1.
+\end{align}
+Thus,
+\(\tilde u_t^{\mathrm{LR}}\neq0\) and
+\[
+0\leq\phi_t<\frac{\pi}{2}.
+\]
+
+Equation~\eqref{eq:app_lr_command} consists of a unit component along
+\(u_t^{\mathrm{Lead}}\) and an orthogonal component of magnitude
+\[
+\tan(\theta_{\max})\|r_t^\perp\|.
+\]
+Therefore,
+\begin{equation}
+\tan(\phi_t)
+=
+\tan(\theta_{\max})\|r_t^\perp\|.
+\label{eq:app_angle_relation}
+\end{equation}
+Lemma~\ref{lem:orthogonal_residual} gives
+\(
+\|r_t^\perp\|\leq1
+\),
+hence
+\[
+\tan(\phi_t)
+\leq
+\tan(\theta_{\max}).
+\]
+Because tangent is strictly increasing on
+\([0,\pi/2)\),
+\[
+\phi_t
+\leq
+\theta_{\max}.
+\]
+Consequently,
+\begin{equation}
+\angle
+\left(
+u_t^{\mathrm{LR}},
+u_t^{\mathrm{Lead}}
+\right)
+\leq
+\theta_{\max}.
+\end{equation}
+
+For the controller used in the accompanying paper,
+\(\theta_{\max}=30^\circ\); therefore the executed LR-PPO direction can deviate
+by at most \(30^\circ\) from the nominal Lead direction.
+
+
+\subsection*{Proof of Corollary~\ref{cor:lead_recovery}}
+
+Suppose
+\[
+r_t^\perp=0.
+\]
+Then from \eqref{eq:app_lr_command},
+\[
+\tilde u_t^{\mathrm{LR}}
+=
+u_t^{\mathrm{Lead}}.
+\]
+Because the Lead direction is unit norm,
+\[
+u_t^{\mathrm{LR}}
+=
+\frac{u_t^{\mathrm{Lead}}}
+{\|u_t^{\mathrm{Lead}}\|}
+=
+u_t^{\mathrm{Lead}}.
+\]
+
+In particular, if the clipped residual is parallel to Lead,
+\[
+r_t
+=
+\alpha u_t^{\mathrm{Lead}},
+\qquad
+|\alpha|\leq1,
+\]
+then
+\begin{align}
+r_t^\perp
+&=
+\alpha u_t^{\mathrm{Lead}}
+-
+\left(
+\alpha
+\left(u_t^{\mathrm{Lead}}\right)^T
+u_t^{\mathrm{Lead}}
+\right)
+u_t^{\mathrm{Lead}} \\
+&=
+\alpha u_t^{\mathrm{Lead}}
+-
+\alpha u_t^{\mathrm{Lead}} \\
+&=0.
+\end{align}
+Clipping preserves parallel or anti-parallel orientation. Therefore, a raw PPO
+residual that is zero, parallel, or anti-parallel to the Lead direction also
+produces \(r_t^\perp=0\), recovering the nominal Lead command exactly.
+
+
+\subsection*{Proof of Corollary~\ref{cor:positive_alignment}}
+
+Because
+\(u_t^{\mathrm{LR}}\)
+and
+\(u_t^{\mathrm{Lead}}\)
+are unit vectors,
+\begin{equation}
+\left(u_t^{\mathrm{LR}}\right)^T
+u_t^{\mathrm{Lead}}
+=
+\cos(\phi_t),
+\end{equation}
+where
+\[
+\phi_t
+=
+\angle
+\left(
+u_t^{\mathrm{LR}},
+u_t^{\mathrm{Lead}}
+\right).
+\]
+
+By Theorem~\ref{thm:angular_bound},
+\[
+0\leq\phi_t\leq\theta_{\max}<\frac{\pi}{2}.
+\]
+Since cosine is decreasing on this interval,
+\[
+\cos(\phi_t)
+\geq
+\cos(\theta_{\max}).
+\]
+Therefore,
+\begin{equation}
+\left(u_t^{\mathrm{LR}}\right)^T
+u_t^{\mathrm{Lead}}
+\geq
+\cos(\theta_{\max})
+>
+0.
+\end{equation}
+
+For \(\theta_{\max}=30^\circ\),
+\begin{equation}
+\left(u_t^{\mathrm{LR}}\right)^T
+u_t^{\mathrm{Lead}}
+\geq
+\cos(30^\circ)
+=
+\frac{\sqrt{3}}{2}
+\approx0.866.
+\end{equation}
+Hence, LR-PPO always retains a positive directional component along the
+nominal Lead command and cannot reverse the analytical guidance direction.
+
+
+% ============================================================
+% Closing note
+% ============================================================
+\section*{Scope of the Results}
+
+The preceding results describe geometric properties of the LR-PPO action
+construction. They guarantee bounded deviation from predictive Lead guidance,
+exact nominal-controller recovery for residuals without an orthogonal
+component, and positive alignment with the Lead direction. They do not
+constitute a proof of closed-loop stability, global interception optimality,
+or guaranteed interception under arbitrary target motion.
+
+
+\end{document}
