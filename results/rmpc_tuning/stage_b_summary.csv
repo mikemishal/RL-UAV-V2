@@ -1,0 +1,4 @@
+candidate_id,n,success_count,success_rate,wilson_ci_low,wilson_ci_high,soldier_caught_count,soldier_caught_rate,unsafe_intercept_count,unsafe_intercept_rate,timeout_count,timeout_rate,planning_time_n_planning_decisions,planning_time_mean,planning_time_median,planning_time_p95,planning_time_max,theoretical_scenario_step_cost,theoretical_candidate_evaluations,theoretical_defender_rollout_steps
+C2_SHORT,100,80,0.8,0.7111708344068411,0.8666330666689676,20,0.2,0,0.0,0,0.0,22323,2.18942814727415,1.4406353999947896,7.597417369989848,13.062168300006306,15360,640,2560
+C1_FAST,100,81,0.81,0.7222115462093562,0.8748524849023126,19,0.19,0,0.0,0,0.0,22958,0.512181493370528,0.41872469999361783,0.6899974750034743,5.123816100007389,4608,192,768
+C4_LONG,100,57,0.57,0.47215389549212305,0.6626670147588988,39,0.39,2,0.02,2,0.02,38424,5.978644311026993,4.119712450003135,12.10984552498994,19.430741600008332,30720,640,5120

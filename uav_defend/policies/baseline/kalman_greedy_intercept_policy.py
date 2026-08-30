@@ -9,9 +9,10 @@ filtered enemy position estimate (e_hat) provided in the info dictionary.
 Purpose:
     This baseline isolates the effect of state estimation without reinforcement
     learning. By comparing this policy against:
-      - GreedyInterceptPolicy  (greedy on true state, no estimation)
-      - PPO Direct RL          (learned policy on true state)
-      - PPO RL-Kalman          (learned policy on Kalman state)
+      - GreedyInterceptPolicy  (greedy pursuit of the raw noisy measurement,
+        i.e. the Direct/measurement estimator, never ground truth)
+      - PPO Direct RL          (learned policy on the Direct/measurement estimator)
+      - PPO RL-Kalman          (learned policy on the Kalman estimator)
     we can independently measure the value of Kalman filtering and the value
     of learned control, separated from each other.
 
@@ -29,8 +30,13 @@ Design Decision — Stateless:
 Usage:
     This policy must be used with an environment configured for Kalman tracking:
         env = SoldierEnv(EnvConfig(use_kalman_tracking=True))
-    Using it with use_kalman_tracking=False will result in it receiving raw
-    noisy enemy measurements in e_hat (without Kalman smoothing).
+    It is registered as canonical name "kalman_greedy" and is intended ONLY
+    for the Kalman track -- the sanitized policy-info pipeline
+    (uav_defend.policies.sanitize.build_policy_info) supplies 'e_hat' only
+    for estimator_mode="kalman"; under "measurement" mode 'e_hat' is absent
+    and this policy would receive no target at all after detection. The
+    Direct/measurement-track baseline is GreedyInterceptPolicy (canonical
+    name "greedy"), which pursues 'enemy_measurement' instead.
 """
 
 from __future__ import annotations
@@ -46,13 +52,18 @@ class KalmanGreedyInterceptPolicy:
     to the Kalman-filtered enemy state estimate provided by the environment.
     This is the fourth comparison method in the research, alongside:
 
-        - GreedyInterceptPolicy  : greedy pursuit with true enemy state
-        - PPO Direct RL          : learned policy with true enemy state
-        - PPO RL-Kalman          : learned policy with Kalman-filtered state
+        - GreedyInterceptPolicy  : greedy pursuit of the raw noisy measurement
+          (Direct/measurement estimator, never ground truth)
+        - PPO Direct RL          : learned policy with the Direct/measurement estimator
+        - PPO RL-Kalman          : learned policy with the Kalman-filtered estimator
 
     By pairing Kalman estimation with a hand-designed (non-RL) controller,
     this baseline quantifies how much of the RL-Kalman performance gain (or
     loss) comes from the estimation step vs. the learned control.
+
+    GROUND-TRUTH INDEPENDENCE: this policy NEVER reads `info['enemy_pos']` or
+    `info['enemy_vel']`; it pursues only `info['e_hat']`, the Kalman filter's
+    estimated hostile position.
 
     Behavior:
         - When e_hat is available (enemy detected, Kalman estimate active):
@@ -88,20 +99,20 @@ class KalmanGreedyInterceptPolicy:
         This is the main policy interface compatible with SoldierEnv.
 
         Args:
-            obs: Environment observation array of shape (9,).
-                 Format: [soldier_x, soldier_y, defender_x, defender_y,
-                          detected_flag, e_hat_x, e_hat_y, v_hat_x, v_hat_y]
+            obs: Environment observation array of shape (16,).
+                 Format: [soldier(3), defender(3), defender_vel(3),
+                          detected_flag, e_hat(3), v_hat(3)]
                  All values normalized to [-1, 1]. Not used directly; raw
                  positions are read from info for clarity and precision.
             info: Environment info dict containing:
-                 - 'defender_pos': Unnormalized defender position (np.ndarray)
+                 - 'defender_pos': Unnormalized defender position (np.ndarray), shape (3,)
                  - 'e_hat': Kalman-filtered enemy position estimate, or None
-                   if the enemy has not been detected yet (np.ndarray | None)
-                 - 'soldier_pos': Unnormalized soldier position (np.ndarray)
+                   if the enemy has not been detected yet (np.ndarray | None), shape (3,)
+                 - 'soldier_pos': Unnormalized soldier position (np.ndarray), shape (3,)
                  - 'enemy_detected': Boolean detection flag
 
         Returns:
-            action: 2D action vector in [-1, 1]^2 representing heading direction.
+            action: 3D action vector in [-1, 1]^3 representing heading direction.
                    The environment normalizes the magnitude; only direction matters.
 
         Policy Logic:
@@ -124,7 +135,7 @@ class KalmanGreedyInterceptPolicy:
             target = np.asarray(soldier_pos, dtype=np.float32)
         else:
             # Degenerate state: no useful target information available
-            return np.array([0.0, 0.0], dtype=np.float32)
+            return np.zeros(3, dtype=np.float32)
 
         # Compute direction vector from defender to target
         defender = np.asarray(defender_pos, dtype=np.float32)
@@ -133,7 +144,7 @@ class KalmanGreedyInterceptPolicy:
 
         if dist < self.eps:
             # Defender is already at target; no movement needed
-            return np.array([0.0, 0.0], dtype=np.float32)
+            return np.zeros(3, dtype=np.float32)
 
         # Return normalized unit vector (environment scales by defender speed)
         return (direction / dist).astype(np.float32)

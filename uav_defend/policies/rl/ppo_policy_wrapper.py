@@ -185,13 +185,13 @@ class PPOPolicyWrapper:
         pipeline.
         
         Args:
-            obs: Environment observation array, shape (9,) for SoldierEnv.
+            obs: Environment observation array, shape (16,) for SoldierEnv.
                  Expected to be normalized to [-1, 1].
             info: Environment info dictionary. Not used by PPO but included
                   for interface compatibility with baseline policies.
         
         Returns:
-            action: 2D action vector, shape (2,), values in [-1, 1].
+            action: 3D action vector, shape (3,), values in [-1, 1].
                    Represents the defender heading direction.
         
         Note:

@@ -51,6 +51,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import pandas as pd
 
 from uav_defend.envs import SoldierEnv
+from uav_defend.config import EnvConfig
 from uav_defend.policies import get_policy, list_policies, get_policy_name
 
 from experiments.eval_utils import (
@@ -58,6 +59,7 @@ from experiments.eval_utils import (
     print_summary,
     format_comparison_df,
 )
+from experiments.method_specs import get_method_spec
 
 
 # Standard output paths
@@ -108,8 +110,15 @@ def evaluate_for_comparison(
     else:
         policy = get_policy(policy_name)
     
-    # Create environment factory
-    env_factory = lambda: SoldierEnv()
+    # Create environment factory. use_kalman_tracking is derived from the
+    # method's canonical estimator (see experiments/method_specs.py) --
+    # NEVER left to the environment's default.
+    try:
+        estimator = get_method_spec(get_policy_name(policy)).estimator
+    except KeyError:
+        estimator = "measurement"
+    use_kalman = estimator == "kalman"
+    env_factory = lambda: SoldierEnv(config=EnvConfig(use_kalman_tracking=use_kalman))
     
     # Generate seeds (identical for all policies)
     seeds = list(range(seed_offset, seed_offset + n_episodes))

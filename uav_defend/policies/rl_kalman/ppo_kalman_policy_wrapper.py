@@ -15,8 +15,8 @@ The key difference from PPOPolicyWrapper (in rl/):
 Why This Matters:
 -----------------
 When use_kalman_tracking=True in the environment:
-    - obs[5:7] = e_hat (Kalman estimated enemy position)
-    - obs[7:9] = v_hat (Kalman estimated enemy velocity)
+    - obs[10:13] = e_hat (Kalman estimated enemy position, 3D)
+    - obs[13:16] = v_hat (Kalman estimated enemy velocity, 3D)
     
 This provides the policy with:
     1. Smoothed position estimates (noise-filtered)
@@ -90,11 +90,12 @@ class PPOKalmanPolicyWrapper:
     
     Observation Format (when use_kalman_tracking=True):
     ---------------------------------------------------
-        obs = [soldier_x, soldier_y,    # Soldier position (normalized)
-               defender_x, defender_y,  # Defender position (normalized)
-               detected_flag,           # 0.0 or 1.0
-               e_hat_x, e_hat_y,        # Kalman estimated enemy position
-               v_hat_x, v_hat_y]        # Kalman estimated enemy velocity
+        obs = [soldier_x, soldier_y, soldier_z,       # Soldier position (normalized)
+               defender_x, defender_y, defender_z,    # Defender position (normalized)
+               defender_vx, defender_vy, defender_vz, # Defender velocity (normalized by v_d)
+               detected_flag,                         # 0.0 or 1.0
+               e_hat_x, e_hat_y, e_hat_z,              # Kalman estimated enemy position
+               v_hat_x, v_hat_y, v_hat_z]              # Kalman estimated enemy velocity
                
         After detection:
             - e_hat: Smoothed position from Kalman filter
@@ -182,21 +183,21 @@ class PPOKalmanPolicyWrapper:
         policies to be evaluated with the same code as scripted baselines.
         
         The observation should come from an environment with use_kalman_tracking=True,
-        where obs[5:9] contains Kalman estimates (e_hat, v_hat) rather than
+        where obs[10:16] contains Kalman estimates (e_hat, v_hat) rather than
         direct enemy state.
         
         Args:
             obs: Normalized observation array from SoldierEnv.
-                 Shape: (9,), values in [-1, 1].
+                 Shape: (16,), values in [-1, 1].
                  Expected format (with Kalman tracking):
-                   [soldier_x, soldier_y, defender_x, defender_y,
-                    detected_flag, e_hat_x, e_hat_y, v_hat_x, v_hat_y]
+                   [soldier(3), defender(3), defender_vel(3), detected_flag,
+                    e_hat(3), v_hat(3)]
             info: Additional info dict from environment.
                   Contains: e_hat, v_hat, tracking_error (when detected)
         
         Returns:
-            Action array of shape (2,), values in [-1, 1].
-            Represents 2D direction vector for defender movement.
+            Action array of shape (3,), values in [-1, 1].
+            Represents 3D direction vector for defender movement.
         """
         action, _ = self.model.predict(obs, deterministic=self.deterministic)
         return np.asarray(action, dtype=np.float32)

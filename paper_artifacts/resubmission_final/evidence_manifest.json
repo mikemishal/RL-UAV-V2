@@ -1,0 +1,83 @@
+{
+  "branch": "feature/robust-mpc-baseline",
+  "claims_ledger_hash": "93b04eefe3a4726889e69a374a5c413160825e112f55de63746b56e74e6a9f43",
+  "figure_hashes": {
+    "fig_nominal_performance.pdf": "9ecfc21eeea2647da32ea4bdda9cf715194e81f3a42ace65073112337cfb05df",
+    "fig_nominal_performance.png": "d8b4822bc8c3b659605f37186242d15919292b8a4738755ae8cd57e92f160b84",
+    "fig_robustness_summary.pdf": "3300153579b15e0a514645bdc53fb7626cdd704241df364bf6102f3b17529b3c",
+    "fig_robustness_summary.png": "8fa78621892bf97e10fdac88a35212bab8e66d26a37a4b4b2a2ea7fa63e26e60"
+  },
+  "learned_model_hashes": {
+    "lr_ppo_seed55": "40c64c46cad7f97da8ecf1f59fcec856e68b3633a557c133116b64759933fc7b",
+    "lr_ppo_seed56": "e12753eafd357dbeb849126997373c4bd963d79079636a30a945c2fc3ae2c343",
+    "lr_ppo_seed57": "f7b54cdeaa2a4e760399df41a915cc7a5f5f134e567599f0e8a59a59427ff29a",
+    "ppo_kalman_seed45": "ddf16641a71b102cfb01d9928597ab0c43d11598cd2d0f4eb63932d80490f98e",
+    "ppo_kalman_seed46": "b22116eb659552a94c28bfb32cdef58d5630267eaa4654a7a87b4ab802234f07",
+    "ppo_kalman_seed47": "a9d7a3f39c3c63dab98cfcfbb68c117844c3ef1884a23a242a9d38cfa4f2152d",
+    "ppo_seed45": "3b7e37dcf94a90c484364127c8a594c06386fba389bed1735cac316ed34b6595",
+    "ppo_seed46": "ceb4c652a84ab88616e8389ae4aa80b58ae5e323b3496ea2103dfe8c85c1b37c",
+    "ppo_seed47": "ea38fe085ec6ea1cefa051ba08ee80d749f35b87b699a129bf9157d82ed4a334"
+  },
+  "no_new_environment_seed_executed": true,
+  "nominal_results_commit": "b0f952f",
+  "numpy_version": "2.4.2",
+  "paper_evidence_base_commit": "e82a188a09e14d3f101f27ef954fbb8721fb3725",
+  "paper_evidence_build_commit": "7d255152074317f64d79487d5df407565844a9f1",
+  "paper_values_json_hash": "ed65676cf0a186ab10b2122b51dce0668448b9b92c6b87f8807b08888412f8d9",
+  "python_version": "3.13.14 (tags/v3.13.14:fd17997, Jun 10 2026, 13:03:48) [MSC v.1944 64 bit (AMD64)]",
+  "repository": "mikemishal/RL-UAV-V2",
+  "result_file_hashes": {
+    "rmpc_final_nominal/family_summary.csv": "8bc018a6b7a865e116ecf0f0e896425cdec7d1453109c099f1814d9705904e0b",
+    "rmpc_final_nominal/instance_summary.csv": "f2343f225c5d3eb07fb626ba427e94fe177c31cab43f864d10f483ea01717225",
+    "rmpc_final_nominal/paired_differences.csv": "bac609bc465e393aab70dc8c6cdc9695e88dd10360206437f18bca0f22477849",
+    "rmpc_targeted_robustness/primary_differences_summary.csv": "a38a1a813007c0ecb49d0617b746134af84303dbf93c1654ab146b8247eb2c46",
+    "rmpc_targeted_robustness/robustness_summary.csv": "7a3808a61f11355c9749918f63cbf10f7263f3c052d702ffcccf25ce04b0eb73"
+  },
+  "rmpc_configuration_hash": "7fe3b23b8b13880979852d7cd89a3a15ac7cdedfa9c503ed494a5a4f5d21b38f",
+  "rmpc_tuning_results_commit": "ed4124c",
+  "seed_ledger": {
+    "reserved_unopened": {
+      "future_robustness": [
+        78000,
+        99999
+      ],
+      "rmpc_tuning_reserve": [
+        71300,
+        71999
+      ]
+    },
+    "used_final_paper_evidence": {
+      "nominal": [
+        72000,
+        76999
+      ],
+      "targeted_robustness": [
+        77000,
+        77999
+      ]
+    }
+  },
+  "source_hashes": {
+    "build_resubmission_evidence.py": "06fc63fbd2ec7f11c358dd1616196030805c84c40cb09a02d9c3c94878663872",
+    "lead_residual_ppo_policy_wrapper.py": "b8290955c6063b42c9e015cfecc701cdf583f90cccc249c9aa5603b520c55d2f",
+    "rmpc_policy.py": "97875bebfdbd85b844e82642fdaa34be9b846ba4b69a2165d04b1c8ed58152a9",
+    "run_rmpc_final_nominal.py": "4fb93ca56b9bf38a8fe054666db9b34e7936503d110b28a321a242003c9df297",
+    "run_rmpc_targeted_robustness.py": "e5a46860ef0d1ef0dbf888245714bce6521550620a0e4e8f40e7985b7c8938c4",
+    "soldier_env.py": "4eebe17651b66137c57167e332f5e1e84cb75bb8442151728f5724658fd3302e"
+  },
+  "table_hashes": {
+    "nominal_differences.csv": "ebc52e5b154287be7437f0dce666c7e19c4953047cb16151de7ff62e322b89ee",
+    "nominal_differences.tex": "2e7c3c63d788abb198edf71e2479f726ef0c527e47b56295a44293e6035c39bd",
+    "nominal_performance.csv": "1145735dd6273b93775a9bda9ec255b8ec2b0d86a0b9cdd5ab4ca78383268e54",
+    "nominal_performance.tex": "1a44eeb56e46e5ce7ff387deb904cc5743719b2a7feb1aafe0e4ec6de80f679c",
+    "robustness_condensed.csv": "128a7828dd49f20d31ca355cf39a41293394a86dceed4e7fb9852fe34e3c316a",
+    "robustness_condensed.tex": "7652b8485dbfb0ad4d69de36b42fec0f0f986e2f5215f6af132fe6e0f5f055f4",
+    "robustness_differences.csv": "4f842c54e5feab56a394e944adc8de4034c405eab37802da3c7fb822d429708a",
+    "robustness_differences.tex": "7043ad714409ee37badacf4591b643e69901f5941260bcd84af37bde238a7827",
+    "robustness_success.csv": "4ea7180e7decb872ccc7abeb0f56f8bc123bc43e102b0576ad06959a8f5901dc",
+    "robustness_success.tex": "100a3c5341f92a3ab92c1340a61a3905c73678782d51808eacf23e0d108cc5b8"
+  },
+  "targeted_robustness_results_commit": "e82a188",
+  "tier_c_note": "results/rmpc_tuning/ used ONLY for the frozen controller definition and its hash; no tuning-stage success rate was used as final performance evidence.",
+  "timestamp_utc": "2026-08-25T13:50:59.736414+00:00"
+}

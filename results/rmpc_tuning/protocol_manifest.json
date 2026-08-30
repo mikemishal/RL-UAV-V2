@@ -1,0 +1,169 @@
+{
+  "repository": "mikemishal/RL-UAV-V2",
+  "branch": "feature/robust-mpc-baseline",
+  "rmpc_tuning_protocol_commit": "dc6e29ac755e51e5d545a9ddc5bcb5d609eac864",
+  "rmpc_design_commit": "61483f6c448ff2c3b3dfa3bd4c3fa25f18fecf07",
+  "rmpc_implementation_commit": "80ea7bd",
+  "rmpc_hardening_commit": "cb06b04ed39d17ad64b4243c2fe84407bc95e6e4",
+  "rmpc_tuning_base_commit": "cb06b04ed39d17ad64b4243c2fe84407bc95e6e4",
+  "env_config_snapshot": {
+    "L": 50.0,
+    "max_altitude": 30.0,
+    "enemy_spawn_altitude_min": 10.0,
+    "enemy_spawn_altitude_max": 30.0,
+    "max_steps": 2000,
+    "dt": 0.5,
+    "eps": 1e-08,
+    "v_s": 1.5,
+    "v_e": 12.0,
+    "rho": 0.85,
+    "sigma_a": 0.5,
+    "sigma_e": 0.15,
+    "weave_amplitude": 1.5,
+    "v_d": 18.0,
+    "defender_max_accel": 8.0,
+    "defender_max_turn_rate_deg": 90.0,
+    "defender_max_climb_rate": 6.0,
+    "defender_max_descent_rate": 6.0,
+    "enemy_max_accel": 6.0,
+    "enemy_max_turn_rate_deg": 75.0,
+    "enemy_max_climb_rate": 5.0,
+    "enemy_max_descent_rate": 5.0,
+    "enemy_evasion_enabled": true,
+    "enemy_evasion_radius": 20.0,
+    "enemy_evasion_gain": 0.75,
+    "reward_intercept": 100.0,
+    "reward_soldier_caught": -100.0,
+    "reward_unsafe_intercept": -150.0,
+    "reward_timeout": -100.0,
+    "reward_progress_scale": 5.0,
+    "reward_time_penalty": -0.05,
+    "reward_proximity_warning": -0.5,
+    "detection_radius": 15.0,
+    "intercept_radius": 2.5,
+    "threat_radius": 2.0,
+    "unsafe_intercept_radius": 3.5,
+    "defender_standby_until_detection": true,
+    "use_kalman_tracking": false,
+    "process_var": 1.0,
+    "measurement_var": 0.5,
+    "lead_time": 0.0
+  },
+  "candidate_configs": {
+    "C1_FAST": {
+      "horizon": 4,
+      "population_size": 64,
+      "elite_fraction": 0.2,
+      "cem_iterations": 3
+    },
+    "C2_SHORT": {
+      "horizon": 4,
+      "population_size": 128,
+      "elite_fraction": 0.2,
+      "cem_iterations": 5
+    },
+    "C3_BALANCED": {
+      "horizon": 6,
+      "population_size": 128,
+      "elite_fraction": 0.2,
+      "cem_iterations": 5
+    },
+    "C4_LONG": {
+      "horizon": 8,
+      "population_size": 128,
+      "elite_fraction": 0.2,
+      "cem_iterations": 5
+    },
+    "C5_LARGE_POP": {
+      "horizon": 6,
+      "population_size": 256,
+      "elite_fraction": 0.2,
+      "cem_iterations": 5
+    },
+    "C6_TIGHT_ELITE": {
+      "horizon": 6,
+      "population_size": 128,
+      "elite_fraction": 0.1,
+      "cem_iterations": 5
+    },
+    "C7_MORE_ITER": {
+      "horizon": 6,
+      "population_size": 128,
+      "elite_fraction": 0.2,
+      "cem_iterations": 8
+    }
+  },
+  "fixed_cem_constants": {
+    "controller_seed": 0,
+    "cem_initial_std": 1.0,
+    "cem_min_std": 0.05,
+    "cem_sample_clip": 3.0,
+    "enable_timing": true
+  },
+  "controller_seed": 0,
+  "scenario_count": 6,
+  "seed_ranges_opened": {
+    "stage_a": [
+      71000,
+      71029
+    ],
+    "stage_b": [
+      71030,
+      71099
+    ],
+    "validation": [
+      71100,
+      71199
+    ],
+    "diagnostic": [
+      71200,
+      71299
+    ]
+  },
+  "seed_ranges_unopened_reserve": [
+    [
+      71300,
+      71999
+    ],
+    [
+      72000,
+      99999
+    ]
+  ],
+  "selection_metric": "safe_interception_success_count (outcome == 'intercepted')",
+  "tie_break_rule": [
+    "lower theoretical scenario-step cost (population_size * cem_iterations * 6 * horizon)",
+    "lower median post-detection RMPC planning time",
+    "lexicographically smaller candidate_id"
+  ],
+  "canonical_episode_runner": "experiments.post_detection_diagnostic_eval_utils.run_diagnostic_episode",
+  "sanitizer_function": "uav_defend.policies.sanitize.build_policy_info",
+  "representative_fairness_candidate": "C3_BALANCED",
+  "timestamp_utc": "2026-08-20T15:27:52.896739+00:00",
+  "platform": {
+    "os": "Windows-11-10.0.26200-SP0",
+    "cpu": "Intel64 Family 6 Model 186 Stepping 2, GenuineIntel",
+    "python_version": "3.13.14 (tags/v3.13.14:fd17997, Jun 10 2026, 13:03:48) [MSC v.1944 64 bit (AMD64)]",
+    "numpy_version": "2.4.2"
+  },
+  "rmpc_source_file_hashes": {
+    "rmpc_policy.py": "97875bebfdbd85b844e82642fdaa34be9b846ba4b69a2165d04b1c8ed58152a9",
+    "rmpc_cost.py": "ba9eb80dd3855137dc0bbe84be0c7cd8540fbaac474d8d702cfd93b8ae4c45ee",
+    "hostile_scenarios.py": "dfff3dcddeaab18f7c5575736dadfbf401322779b054bdb2bcacb2923a71db95",
+    "cem_optimizer.py": "5bc9d43db42e2468f0dd4811c86efdde762b24e8ad5eb9682efa6d77cd843809",
+    "lead_init.py": "f9ca4349ef05cf0cf0fa42b64e5fe0f9f08b433b44166b915c0dde2cc0a3b9a0",
+    "constrained_point_mass.py": "65cbee9998daaa5e0f32df244831a2bb5a2ab7fddf143cf68aaf077ec593e612"
+  },
+  "development_data_disclaimer": "DEVELOPMENT / MODEL-SELECTION DATA -- NOT FINAL PUBLICATION EVIDENCE",
+  "stage_a_top3": [
+    "C2_SHORT",
+    "C1_FAST",
+    "C4_LONG"
+  ],
+  "development_finalists": [
+    "C1_FAST",
+    "C2_SHORT"
+  ],
+  "selected_rmpc_config": "C1_FAST",
+  "tie_break_used_at_validation": false
+}

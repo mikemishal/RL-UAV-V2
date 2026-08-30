@@ -1,0 +1,44 @@
+{
+  "C1_FAST": {
+    "horizon": 4,
+    "population_size": 64,
+    "elite_fraction": 0.2,
+    "cem_iterations": 3
+  },
+  "C2_SHORT": {
+    "horizon": 4,
+    "population_size": 128,
+    "elite_fraction": 0.2,
+    "cem_iterations": 5
+  },
+  "C3_BALANCED": {
+    "horizon": 6,
+    "population_size": 128,
+    "elite_fraction": 0.2,
+    "cem_iterations": 5
+  },
+  "C4_LONG": {
+    "horizon": 8,
+    "population_size": 128,
+    "elite_fraction": 0.2,
+    "cem_iterations": 5
+  },
+  "C5_LARGE_POP": {
+    "horizon": 6,
+    "population_size": 256,
+    "elite_fraction": 0.2,
+    "cem_iterations": 5
+  },
+  "C6_TIGHT_ELITE": {
+    "horizon": 6,
+    "population_size": 128,
+    "elite_fraction": 0.1,
+    "cem_iterations": 5
+  },
+  "C7_MORE_ITER": {
+    "horizon": 6,
+    "population_size": 128,
+    "elite_fraction": 0.2,
+    "cem_iterations": 8
+  }
+}

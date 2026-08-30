@@ -95,6 +95,12 @@ With 200k training timesteps:
 - **Win rate:** ~60%
 - **Average reward:** ~290
 
+## Technical Report
+
+[LR-PPO Technical Report: Proofs of Theoretical Results](docs/technical_report/LR_PPO_Theory.pdf)
+
+This report contains detailed proofs of the geometric properties of Lead-Residual PPO.
+
 ## Dependencies
 
 - gymnasium

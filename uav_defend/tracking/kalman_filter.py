@@ -2,7 +2,7 @@
 Kalman Filter for enemy state estimation.
 
 Implements a constant-velocity Kalman filter for tracking enemy UAVs
-using noisy position measurements.
+in 3D using noisy position measurements.
 """
 
 import numpy as np
@@ -10,13 +10,13 @@ import numpy as np
 
 class EnemyKalmanFilter:
     """
-    Constant-velocity Kalman filter for 2D enemy tracking.
+    Constant-velocity Kalman filter for 3D enemy tracking.
     
-    State vector: x = [px, py, vx, vy]^T
-        - px, py: position in 2D
-        - vx, vy: velocity in 2D
+    State vector: x = [px, py, pz, vx, vy, vz]^T
+        - px, py, pz: position in 3D
+        - vx, vy, vz: velocity in 3D
     
-    Measurement vector: z = [px, py]^T
+    Measurement vector: z = [px, py, pz]^T
         - Only position is observed (e.g., from radar/sensor detection)
     
     The filter assumes constant velocity motion with process noise
@@ -24,22 +24,25 @@ class EnemyKalmanFilter:
     
     Attributes:
         dt (float): Time step between predictions.
-        x (np.ndarray): State estimate [px, py, vx, vy].
-        P (np.ndarray): State covariance matrix (4x4).
-        F (np.ndarray): State transition matrix (4x4).
-        H (np.ndarray): Measurement matrix (2x4).
-        Q (np.ndarray): Process noise covariance (4x4).
-        R (np.ndarray): Measurement noise covariance (2x2).
+        x (np.ndarray): State estimate [px, py, pz, vx, vy, vz].
+        P (np.ndarray): State covariance matrix (6x6).
+        F (np.ndarray): State transition matrix (6x6).
+        H (np.ndarray): Measurement matrix (3x6).
+        Q (np.ndarray): Process noise covariance (6x6).
+        R (np.ndarray): Measurement noise covariance (3x3).
         initialized (bool): Whether the filter has been initialized.
     
     Example:
         >>> kf = EnemyKalmanFilter(dt=0.1, process_var=1.0, measurement_var=0.5)
-        >>> kf.initialize(np.array([10.0, 20.0]))
+        >>> kf.initialize(np.array([10.0, 20.0, 15.0]))
         >>> kf.predict()
-        >>> kf.update(np.array([10.5, 20.3]))
+        >>> kf.update(np.array([10.5, 20.3, 14.8]))
         >>> pos = kf.get_position()
         >>> vel = kf.get_velocity()
     """
+    
+    STATE_DIM = 6
+    MEAS_DIM = 3
     
     def __init__(self, dt: float, process_var: float, measurement_var: float):
         """
@@ -56,39 +59,30 @@ class EnemyKalmanFilter:
         self.process_var = process_var
         self.measurement_var = measurement_var
         
-        # State vector: [px, py, vx, vy]
-        self.x = np.zeros(4)
+        # State vector: [px, py, pz, vx, vy, vz]
+        self.x = np.zeros(self.STATE_DIM)
         
         # State covariance matrix (initialized with high uncertainty)
-        self.P = np.eye(4) * 1000.0
+        self.P = np.eye(self.STATE_DIM) * 1000.0
         
         # State transition matrix (constant velocity model)
-        # x_new = F @ x_old
-        # px_new = px + vx * dt
-        # py_new = py + vy * dt
-        # vx_new = vx
-        # vy_new = vy
-        self.F = np.array([
-            [1.0, 0.0, dt,  0.0],
-            [0.0, 1.0, 0.0, dt ],
-            [0.0, 0.0, 1.0, 0.0],
-            [0.0, 0.0, 0.0, 1.0]
-        ])
+        # x_new = F @ x_old ; p_new = p + v*dt (per axis), v_new = v (per axis)
+        # F = [[I_3, dt*I_3], [0, I_3]]
+        self.F = np.eye(self.STATE_DIM)
+        self.F[0:3, 3:6] = np.eye(3) * dt
         
         # Measurement matrix (we only observe position)
-        # z = H @ x => [px_measured, py_measured] = H @ [px, py, vx, vy]
-        self.H = np.array([
-            [1.0, 0.0, 0.0, 0.0],
-            [0.0, 1.0, 0.0, 0.0]
-        ])
+        # z = H @ x => [px, py, pz]_measured = H @ [px, py, pz, vx, vy, vz]
+        # H = [I_3, 0]
+        self.H = np.zeros((self.MEAS_DIM, self.STATE_DIM))
+        self.H[0:3, 0:3] = np.eye(3)
         
         # Process noise covariance
-        # Uses discrete white noise model for constant velocity
-        # Noise enters through acceleration, integrated to velocity and position
+        # Uses discrete white noise model for constant velocity, generalized to 3 axes
         self.Q = self._compute_process_noise(dt, process_var)
         
         # Measurement noise covariance
-        self.R = np.eye(2) * measurement_var
+        self.R = np.eye(self.MEAS_DIM) * measurement_var
         
         # Track initialization state
         self.initialized = False
@@ -98,30 +92,31 @@ class EnemyKalmanFilter:
         Compute process noise covariance matrix for constant-velocity model.
         
         Uses the discrete white noise acceleration model where noise
-        enters as random acceleration.
+        enters as random acceleration, generalized to three independent axes:
+        
+            Q = q * [[dt^4/4 * I_3, dt^3/2 * I_3],
+                     [dt^3/2 * I_3, dt^2   * I_3]]
         
         Args:
             dt: Time step.
-            var: Process noise variance (acceleration variance).
+            var: Process noise variance (acceleration variance), i.e. q.
         
         Returns:
-            4x4 process noise covariance matrix.
+            6x6 process noise covariance matrix, position-first ordering.
         """
-        # Noise covariance for position-velocity pairs
-        # Derived from integrating white noise acceleration
         dt2 = dt * dt
         dt3 = dt2 * dt
         dt4 = dt3 * dt
         
-        # Block diagonal for x and y (independent)
-        q = np.array([
-            [dt4/4, 0,     dt3/2, 0    ],
-            [0,     dt4/4, 0,     dt3/2],
-            [dt3/2, 0,     dt2,   0    ],
-            [0,     dt3/2, 0,     dt2  ]
-        ]) * var
+        I3 = np.eye(3)
+        Q = np.zeros((self.STATE_DIM, self.STATE_DIM))
+        Q[0:3, 0:3] = (dt4 / 4.0) * I3
+        Q[0:3, 3:6] = (dt3 / 2.0) * I3
+        Q[3:6, 0:3] = (dt3 / 2.0) * I3
+        Q[3:6, 3:6] = dt2 * I3
+        Q *= var
         
-        return q
+        return Q
     
     def initialize(self, position: np.ndarray) -> None:
         """
@@ -131,26 +126,26 @@ class EnemyKalmanFilter:
         Resets covariance to reflect high uncertainty in velocity.
         
         Args:
-            position: Initial position measurement [px, py].
+            position: Initial position measurement [px, py, pz].
         """
         position = np.asarray(position).flatten()
-        if position.shape[0] != 2:
-            raise ValueError(f"Position must be 2D, got shape {position.shape}")
+        if position.shape[0] != 3:
+            raise ValueError(f"Position must be 3D, got shape {position.shape}")
         
         # Set initial position, velocity assumed zero
-        self.x[0] = position[0]  # px
-        self.x[1] = position[1]  # py
-        self.x[2] = 0.0          # vx (unknown)
-        self.x[3] = 0.0          # vy (unknown)
+        self.x[0:3] = position
+        self.x[3:6] = 0.0
         
         # Reset covariance
         # Low uncertainty in position (we just measured it)
         # High uncertainty in velocity (we don't know it yet)
         self.P = np.diag([
-            self.measurement_var,      # px uncertainty
-            self.measurement_var,      # py uncertainty
-            100.0,                      # vx uncertainty (high)
-            100.0                       # vy uncertainty (high)
+            self.measurement_var,  # px uncertainty
+            self.measurement_var,  # py uncertainty
+            self.measurement_var,  # pz uncertainty
+            100.0,                  # vx uncertainty (high)
+            100.0,                  # vy uncertainty (high)
+            100.0,                  # vz uncertainty (high)
         ])
         
         self.initialized = True
@@ -163,7 +158,7 @@ class EnemyKalmanFilter:
         and increases uncertainty according to process noise Q.
         
         Returns:
-            Predicted state vector [px, py, vx, vy].
+            Predicted state vector [px, py, pz, vx, vy, vz].
         
         Raises:
             RuntimeError: If filter has not been initialized.
@@ -190,10 +185,10 @@ class EnemyKalmanFilter:
         optimally blend prediction with observation.
         
         Args:
-            z: Position measurement [px, py].
+            z: Position measurement [px, py, pz].
         
         Returns:
-            Updated state vector [px, py, vx, vy].
+            Updated state vector [px, py, pz, vx, vy, vz].
         
         Raises:
             RuntimeError: If filter has not been initialized.
@@ -202,8 +197,8 @@ class EnemyKalmanFilter:
             raise RuntimeError("Filter must be initialized before update()")
         
         z = np.asarray(z).flatten()
-        if z.shape[0] != 2:
-            raise ValueError(f"Measurement must be 2D, got shape {z.shape}")
+        if z.shape[0] != 3:
+            raise ValueError(f"Measurement must be 3D, got shape {z.shape}")
         
         # Innovation (measurement residual)
         y = z - self.H @ self.x
@@ -212,7 +207,6 @@ class EnemyKalmanFilter:
         S = self.H @ self.P @ self.H.T + self.R
         
         # Kalman gain: K = P @ H^T @ S^-1
-        # For 2x2 S, direct inverse is efficient and numerically stable
         try:
             S_inv = np.linalg.inv(S)
         except np.linalg.LinAlgError:
@@ -226,7 +220,7 @@ class EnemyKalmanFilter:
         
         # Covariance update (Joseph form for numerical stability)
         # P = (I - K @ H) @ P @ (I - K @ H)^T + K @ R @ K^T
-        I_KH = np.eye(4) - K @ self.H
+        I_KH = np.eye(self.STATE_DIM) - K @ self.H
         self.P = I_KH @ self.P @ I_KH.T + K @ self.R @ K.T
         
         # Ensure symmetry (numerical stability)
@@ -239,7 +233,7 @@ class EnemyKalmanFilter:
         Get the current state estimate.
         
         Returns:
-            State vector [px, py, vx, vy].
+            State vector [px, py, pz, vx, vy, vz], shape (6,).
         """
         return self.x.copy()
     
@@ -248,25 +242,25 @@ class EnemyKalmanFilter:
         Get the current estimated position.
         
         Returns:
-            Position vector [px, py].
+            Position vector [px, py, pz], shape (3,).
         """
-        return self.x[:2].copy()
+        return self.x[0:3].copy()
     
     def get_velocity(self) -> np.ndarray:
         """
         Get the current estimated velocity.
         
         Returns:
-            Velocity vector [vx, vy].
+            Velocity vector [vx, vy, vz], shape (3,).
         """
-        return self.x[2:4].copy()
+        return self.x[3:6].copy()
     
     def get_covariance(self) -> np.ndarray:
         """
         Get the current state covariance matrix.
         
         Returns:
-            4x4 covariance matrix P.
+            6x6 covariance matrix P.
         """
         return self.P.copy()
     
@@ -275,18 +269,18 @@ class EnemyKalmanFilter:
         Get the position uncertainty (standard deviation).
         
         Returns:
-            Position std [sigma_px, sigma_py].
+            Position std [sigma_px, sigma_py, sigma_pz], shape (3,).
         """
-        return np.sqrt(np.diag(self.P)[:2])
+        return np.sqrt(np.diag(self.P)[0:3])
     
     def get_velocity_uncertainty(self) -> np.ndarray:
         """
         Get the velocity uncertainty (standard deviation).
         
         Returns:
-            Velocity std [sigma_vx, sigma_vy].
+            Velocity std [sigma_vx, sigma_vy, sigma_vz], shape (3,).
         """
-        return np.sqrt(np.diag(self.P)[2:4])
+        return np.sqrt(np.diag(self.P)[3:6])
     
     def reset(self) -> None:
         """
@@ -294,6 +288,6 @@ class EnemyKalmanFilter:
         
         Clears state and covariance, requiring re-initialization.
         """
-        self.x = np.zeros(4)
-        self.P = np.eye(4) * 1000.0
+        self.x = np.zeros(self.STATE_DIM)
+        self.P = np.eye(self.STATE_DIM) * 1000.0
         self.initialized = False

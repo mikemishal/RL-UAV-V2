@@ -21,6 +21,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from uav_defend.envs import SoldierEnv
+from uav_defend.config import EnvConfig
 from uav_defend.policies import GreedyInterceptPolicy
 
 from experiments.eval_utils import (
@@ -52,8 +53,10 @@ def main():
     
     args = parser.parse_args()
     
-    # Create environment factory and policy
-    env_factory = lambda: SoldierEnv()
+    # Create environment factory and policy. Explicit Direct/measurement-track
+    # configuration (GreedyInterceptPolicy is the Direct-track baseline --
+    # never rely on the environment's default).
+    env_factory = lambda: SoldierEnv(config=EnvConfig(use_kalman_tracking=False))
     policy = GreedyInterceptPolicy()
     
     # Generate seeds

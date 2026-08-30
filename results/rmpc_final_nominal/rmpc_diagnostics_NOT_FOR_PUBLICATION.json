@@ -1,0 +1,15 @@
+{
+  "optimizer_fallback_count_total": 0,
+  "measurement_fallback_count_total": 0,
+  "lead_init_count_total": 1095595,
+  "pursuit_init_count_total": 5338,
+  "n_policy_calls_total": 1190710,
+  "n_post_detection_decisions_total": 1100933,
+  "planning_time_diagnostic_NOT_FOR_PUBLICATION": {
+    "n": 1100933,
+    "mean": 0.8097308609100562,
+    "median": 0.5598222999833524,
+    "p95": 2.118610059999627,
+    "max": 17.207110799994553
+  }
+}

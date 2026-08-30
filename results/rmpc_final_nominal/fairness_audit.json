@@ -1,0 +1,104 @@
+{
+  "detection_step_equality_all_instances": true,
+  "n_detection_step_comparisons": 65000,
+  "trajectory_audit_seeds": [
+    72000,
+    72001,
+    72002
+  ],
+  "trajectory_audit_representative_instances": [
+    "greedy",
+    "pn",
+    "lead",
+    "rmpc",
+    "ppo_seed45",
+    "ppo_kalman_seed45",
+    "lr_ppo_seed55"
+  ],
+  "trajectory_audit_results": {
+    "seed_72000_greedy": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_72000_pn": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_72000_lead": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_72000_rmpc": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_72000_ppo_seed45": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_72000_ppo_kalman_seed45": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_72000_lr_ppo_seed55": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_72001_greedy": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_72001_pn": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_72001_lead": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_72001_rmpc": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_72001_ppo_seed45": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_72001_ppo_kalman_seed45": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_72001_lr_ppo_seed55": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_72002_greedy": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_72002_pn": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_72002_lead": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_72002_rmpc": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_72002_ppo_seed45": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_72002_ppo_kalman_seed45": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    },
+    "seed_72002_lr_ppo_seed55": {
+      "trajectory_matches_reference": true,
+      "detection_step_matches_reference": true
+    }
+  }
+}

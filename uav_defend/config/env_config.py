@@ -7,8 +7,15 @@ from dataclasses import dataclass
 class EnvConfig:
     """Configuration for the UAV Defend environment."""
     
-    # Domain: [-L, L]²
-    L: float = 50.0  # Half-size of the 2D square domain
+    # Domain: 3D engagement volume.
+    #   x, y in [-L, L] (horizontal extent)
+    #   z in [0, max_altitude] (altitude)
+    L: float = 50.0  # Half-size of the horizontal square domain
+    max_altitude: float = 30.0  # H: Upper vertical bound of the engagement volume
+
+    # Enemy spawn altitude range (must lie within [0, max_altitude])
+    enemy_spawn_altitude_min: float = 10.0
+    enemy_spawn_altitude_max: float = 30.0
     
     # Time parameters
     max_steps: int = 2000  # Tmax: Maximum steps before episode ends
@@ -37,14 +44,56 @@ class EnvConfig:
     # Defender drone parameters
     v_d: float = 18.0  # Defender speed (faster than enemy, makes interception feasible for RL training)
     
+    # =========================================================================
+    # Constrained 3D Point-Mass Dynamics
+    # - These are PROVISIONAL SIMULATION DEFAULTS, not validated hardware specs.
+    # - v_d / v_e (above) are the maximum total speeds for defender / enemy.
+    # - Each vehicle maintains a persistent 3D velocity that approaches a
+    #   commanded desired velocity subject to: max acceleration, max
+    #   horizontal turn rate, and max climb/descent rate (vertical speed).
+    # - This is a 3D constrained point-mass model, NOT six-DOF or
+    #   aerodynamic flight dynamics.
+    # =========================================================================
+    
+    # Defender dynamics
+    defender_max_accel: float = 8.0            # m/s^2
+    defender_max_turn_rate_deg: float = 90.0   # deg/s (horizontal heading-rate limit)
+    defender_max_climb_rate: float = 6.0       # m/s
+    defender_max_descent_rate: float = 6.0     # m/s
+    
+    # Hostile-UAV dynamics
+    enemy_max_accel: float = 6.0                # m/s^2
+    enemy_max_turn_rate_deg: float = 75.0       # deg/s (horizontal heading-rate limit)
+    enemy_max_climb_rate: float = 5.0           # m/s
+    enemy_max_descent_rate: float = 5.0         # m/s
+    
+    # =========================================================================
+    # Reactive Hostile-UAV Evasion (provisional simulation defaults, NOT
+    # hardware-derived quantities)
+    # - The hostile UAV keeps its primary mission (reach the soldier) but
+    #   increasingly biases its desired direction away from the defender as
+    #   the defender closes within enemy_evasion_radius. This is a
+    #   parameterized reactive evasive policy, not intelligent adversarial
+    #   RL, optimal-attacker, or game-theoretic behavior.
+    # - Evasion is independent of defender detection/sensor state: it models
+    #   the hostile UAV's own local awareness of an approaching interceptor,
+    #   not the defender's tracking of the hostile UAV.
+    # =========================================================================
+    enemy_evasion_enabled: bool = True    # If False, hostile guidance reduces to pursuit + weave (no evasion)
+    enemy_evasion_radius: float = 20.0    # m; 3D defender-enemy range at which evasion begins
+    enemy_evasion_gain: float = 0.75      # Dimensionless relative evasion strength, lambda_e in [0, 1]
+    
     # RL reward shaping parameters
+    # NOTE: there is no Kalman-only "tracking error improvement" reward term.
+    # Tracking error is an EVALUATION metric only (see info["tracking_error"]),
+    # never a training reward, so Direct and Kalman tracks optimize exactly
+    # the same task reward (see SoldierEnv.step()).
     reward_intercept: float = 100.0  # Reward for intercepting enemy (WIN)
     reward_soldier_caught: float = -100.0  # Penalty for enemy catching soldier (LOSS)
     reward_unsafe_intercept: float = -150.0  # Severe penalty for unsafe intercept (discourage risky behavior)
     reward_timeout: float = -100.0  # Penalty for timeout (failed to intercept)
     reward_progress_scale: float = 5.0  # Scale for distance progress reward (closing on enemy)
     reward_time_penalty: float = -0.05  # Small time penalty per step
-    reward_tracking_scale: float = 1.0  # Scale for tracking error improvement reward (after detection)
     reward_proximity_warning: float = -0.5  # Per-step penalty when enemy is close to soldier (increased)
     
     # =========================================================================
@@ -58,16 +107,113 @@ class EnvConfig:
     intercept_radius: float = 2.5   # Distance at which defender neutralizes/intercepts the enemy
     threat_radius: float = 2.0      # Enemy reaches soldier and causes mission failure
     unsafe_intercept_radius: float = 3.5  # If intercept occurs this close to soldier, it's a failure
+
+    # =========================================================================
+    # Pre-Detection Engagement Semantics (revised canonical scenario)
+    # - The defender begins co-located with the protected soldier
+    #   (see SoldierEnv.reset()). Before hostile detection, the intended
+    #   engagement scenario is a stationary standby/escort posture: the
+    #   defender has not yet launched to intercept anything.
+    # - defender_standby_until_detection=True (the REVISED canonical
+    #   default): while the hostile is undetected, the defender is held
+    #   EXACTLY co-located with the soldier (position and velocity), and the
+    #   supplied controller action has NO effect. Control effectively hands
+    #   off to the selected interception controller beginning with the
+    #   FIRST step whose action is applied after detection already held true
+    #   at the start of that step (see SoldierEnv.step() for the exact
+    #   discrete-time handoff). This applies identically to every
+    #   controller (Greedy, PN, Lead, PPO, PPO-Kalman, ...).
+    # - defender_standby_until_detection=False (LEGACY mode, retained only
+    #   for historical reproducibility / diagnostics, e.g.
+    #   experiments/policy_wrappers.py's EscortUntilDetectionPolicy-based
+    #   acquisition-ablation study): the supplied action is applied to the
+    #   defender every step from the very start of the episode, exactly as
+    #   in the original (pre-revision) environment behavior.
+    # - See docs/revised_predetection_protocol.md for the full rationale.
+    # =========================================================================
+    defender_standby_until_detection: bool = True
+
     
     # =========================================================================
     # Kalman Tracking and Sensing Noise Configuration
     # - measurement_var is the single official sensor-noise parameter.
     # - After detection, a noisy enemy-position measurement is generated each step
     #   with covariance measurement_var * I for all controller modes.
+    # - The Direct/measurement track additionally derives a finite-difference
+    #   measurement velocity from consecutive measurements (see
+    #   SoldierEnv._update_detection); no filtering is applied to it.
     # - If use_kalman_tracking=True, Kalman filter smooths these measurements.
-    # - If use_kalman_tracking=False, policies receive the raw noisy measurement.
+    # - If use_kalman_tracking=False (the default), policies/observations receive
+    #   the raw noisy measurement plus its finite-difference velocity estimate.
+    #   Kalman filtering is an explicit opt-in estimator, not the environment's
+    #   implicit default.
     # =========================================================================
-    use_kalman_tracking: bool = True  # If True, use Kalman filter for enemy state estimation
+    use_kalman_tracking: bool = False  # If True, use Kalman filter for enemy state estimation
     process_var: float = 1.0           # Process noise variance (higher = trust measurements more)
     measurement_var: float = 0.5       # Enemy position measurement noise variance (per axis)
     lead_time: float = 0.0             # Prediction lead time for extrapolating enemy position (seconds)
+
+    def __post_init__(self) -> None:
+        """Validate altitude and dynamics configuration."""
+        if self.enemy_spawn_altitude_min < 0:
+            raise ValueError(
+                f"enemy_spawn_altitude_min must be >= 0, got {self.enemy_spawn_altitude_min}"
+            )
+        if self.enemy_spawn_altitude_min > self.enemy_spawn_altitude_max:
+            raise ValueError(
+                "enemy_spawn_altitude_min must be <= enemy_spawn_altitude_max, got "
+                f"{self.enemy_spawn_altitude_min} > {self.enemy_spawn_altitude_max}"
+            )
+        if self.enemy_spawn_altitude_max > self.max_altitude:
+            raise ValueError(
+                "enemy_spawn_altitude_max must be <= max_altitude, got "
+                f"{self.enemy_spawn_altitude_max} > {self.max_altitude}"
+            )
+
+        if self.v_d <= 0:
+            raise ValueError(f"v_d must be > 0, got {self.v_d}")
+        if self.v_e <= 0:
+            raise ValueError(f"v_e must be > 0, got {self.v_e}")
+
+        if self.defender_max_accel <= 0:
+            raise ValueError(
+                f"defender_max_accel must be > 0, got {self.defender_max_accel}"
+            )
+        if self.enemy_max_accel <= 0:
+            raise ValueError(f"enemy_max_accel must be > 0, got {self.enemy_max_accel}")
+
+        if not (0 < self.defender_max_turn_rate_deg <= 360):
+            raise ValueError(
+                "defender_max_turn_rate_deg must be in (0, 360], got "
+                f"{self.defender_max_turn_rate_deg}"
+            )
+        if not (0 < self.enemy_max_turn_rate_deg <= 360):
+            raise ValueError(
+                f"enemy_max_turn_rate_deg must be in (0, 360], got {self.enemy_max_turn_rate_deg}"
+            )
+
+        if self.defender_max_climb_rate <= 0:
+            raise ValueError(
+                f"defender_max_climb_rate must be > 0, got {self.defender_max_climb_rate}"
+            )
+        if self.defender_max_descent_rate <= 0:
+            raise ValueError(
+                f"defender_max_descent_rate must be > 0, got {self.defender_max_descent_rate}"
+            )
+        if self.enemy_max_climb_rate <= 0:
+            raise ValueError(
+                f"enemy_max_climb_rate must be > 0, got {self.enemy_max_climb_rate}"
+            )
+        if self.enemy_max_descent_rate <= 0:
+            raise ValueError(
+                f"enemy_max_descent_rate must be > 0, got {self.enemy_max_descent_rate}"
+            )
+
+        if self.enemy_evasion_radius <= 0:
+            raise ValueError(
+                f"enemy_evasion_radius must be > 0, got {self.enemy_evasion_radius}"
+            )
+        if not (0 <= self.enemy_evasion_gain <= 1):
+            raise ValueError(
+                f"enemy_evasion_gain must be in [0, 1], got {self.enemy_evasion_gain}"
+            )

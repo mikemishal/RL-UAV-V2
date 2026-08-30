@@ -1,0 +1,20 @@
+{
+  "candidate_id": "C1_FAST",
+  "horizon": 4,
+  "population_size": 64,
+  "elite_fraction": 0.2,
+  "cem_iterations": 3,
+  "controller_seed": 0,
+  "cem_initial_std": 1.0,
+  "cem_min_std": 0.05,
+  "cem_sample_clip": 3.0,
+  "enable_timing": true,
+  "validation_success_count": 75,
+  "validation_n": 100,
+  "validation_success_rate": 0.75,
+  "selection_rule": "validation safe-interception success count on seeds 71100-71199 only",
+  "tie_break_used": false,
+  "source_commit": "dc6e29ac755e51e5d545a9ddc5bcb5d609eac864",
+  "selected_at_timestamp": "2026-08-20T08:28:51.483626+00:00",
+  "frozen_for_final_evaluation": true
+}

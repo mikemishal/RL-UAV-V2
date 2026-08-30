@@ -14,7 +14,7 @@ class RandomPolicy:
     """
     Random baseline policy for UAV defense.
     
-    Samples actions uniformly from [-1, 1]² at each step.
+    Samples actions uniformly from [-1, 1]³ at each step.
     Provides a lower-bound baseline for policy comparison.
     
     Example:
@@ -41,9 +41,9 @@ class RandomPolicy:
             info: Environment info dict (unused).
         
         Returns:
-            action: Random 2D action vector in [-1, 1]².
+            action: Random 3D action vector in [-1, 1]³.
         """
-        return self._rng.uniform(-1.0, 1.0, size=(2,)).astype(np.float32)
+        return self._rng.uniform(-1.0, 1.0, size=(3,)).astype(np.float32)
     
     def reset(self) -> None:
         """Reset internal state (no-op for random policy)."""

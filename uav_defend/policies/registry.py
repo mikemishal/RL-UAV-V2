@@ -21,9 +21,23 @@ POLICY_ALIASES = {
     "greedy": "greedy_intercept",
     "greedy_intercept": "greedy_intercept",
     "baseline": "greedy_intercept",
+    "kalman_greedy": "kalman_greedy",
+    "kalman_greedy_intercept": "kalman_greedy",
+    "greedy_kalman": "kalman_greedy",
     "random": "random",
     "ppo": "ppo",
     "rl": "ppo",
+    "ppo_kalman": "ppo_kalman",
+    "rl_kalman": "ppo_kalman",
+    "pn": "pn",
+    "proportional_navigation": "pn",
+    "pn_kalman": "pn_kalman",
+    "proportional_navigation_kalman": "pn_kalman",
+    "lead": "lead",
+    "lead_intercept": "lead",
+    "predictive_lead": "lead",
+    "lead_kalman": "lead_kalman",
+    "lead_intercept_kalman": "lead_kalman",
 }
 
 
@@ -34,7 +48,7 @@ def list_policies() -> list[str]:
     Returns:
         List of policy names that can be passed to get_policy().
     """
-    return ["greedy", "random", "ppo"]
+    return ["greedy", "kalman_greedy", "random", "ppo", "ppo_kalman", "pn", "pn_kalman", "lead", "lead_kalman"]
 
 
 def get_policy(name: str, **kwargs) -> Any:
@@ -46,8 +60,17 @@ def get_policy(name: str, **kwargs) -> Any:
         **kwargs: Additional arguments passed to the policy constructor.
         
         For "greedy": No additional arguments.
+        For "kalman_greedy": No additional arguments (requires an environment
+            configured with use_kalman_tracking=True).
         For "random": Optional `seed` (int).
         For "ppo": Required `model_path` (str), optional `deterministic` (bool).
+        For "ppo_kalman": Required `model_path` (str), optional `deterministic`
+            (bool) (requires an environment configured with
+            use_kalman_tracking=True).
+        For "pn" / "pn_kalman": Optional `navigation_constant` (float),
+            `min_pn_speed_fraction` (float), `config` (EnvConfig).
+        For "lead" / "lead_kalman": Optional `config` (EnvConfig), `dt`,
+            `v_d`, `eps` overrides.
     
     Returns:
         Policy instance with act(obs, info) and reset() methods.
@@ -58,8 +81,14 @@ def get_policy(name: str, **kwargs) -> Any:
     
     Examples:
         >>> policy = get_policy("greedy")
+        >>> policy = get_policy("kalman_greedy")
         >>> policy = get_policy("random", seed=42)
         >>> policy = get_policy("ppo", model_path="models/policies/ppo_defender.zip")
+        >>> policy = get_policy("ppo_kalman", model_path="models/policies/ppo_kalman.zip")
+        >>> policy = get_policy("pn")
+        >>> policy = get_policy("pn_kalman", navigation_constant=4.0)
+        >>> policy = get_policy("lead")
+        >>> policy = get_policy("lead_kalman")
     """
     # Normalize name
     name_lower = name.lower().strip()
@@ -72,6 +101,12 @@ def get_policy(name: str, **kwargs) -> Any:
     if policy_type == "greedy_intercept":
         from uav_defend.policies.baseline.greedy_intercept_policy import GreedyInterceptPolicy
         return GreedyInterceptPolicy(**kwargs)
+    
+    elif policy_type == "kalman_greedy":
+        from uav_defend.policies.baseline.kalman_greedy_intercept_policy import (
+            KalmanGreedyInterceptPolicy,
+        )
+        return KalmanGreedyInterceptPolicy(**kwargs)
     
     elif policy_type == "random":
         from uav_defend.policies.baseline.random_policy import RandomPolicy
@@ -86,6 +121,40 @@ def get_policy(name: str, **kwargs) -> Any:
         
         deterministic = kwargs.pop("deterministic", True)
         return PPOPolicyWrapper.load(model_path, deterministic=deterministic)
+    
+    elif policy_type == "ppo_kalman":
+        from uav_defend.policies.rl_kalman.ppo_kalman_policy_wrapper import PPOKalmanPolicyWrapper
+        
+        model_path = kwargs.pop("model_path", None)
+        if model_path is None:
+            raise ValueError("PPO-Kalman policy requires 'model_path' argument")
+        
+        deterministic = kwargs.pop("deterministic", True)
+        return PPOKalmanPolicyWrapper.load(model_path, deterministic=deterministic)
+    
+    elif policy_type == "pn":
+        from uav_defend.policies.baseline.proportional_navigation_policy import (
+            ProportionalNavigationPolicy,
+        )
+        kwargs.setdefault("state_source", "measurement")
+        return ProportionalNavigationPolicy(**kwargs)
+    
+    elif policy_type == "pn_kalman":
+        from uav_defend.policies.baseline.proportional_navigation_policy import (
+            ProportionalNavigationPolicy,
+        )
+        kwargs.setdefault("state_source", "kalman")
+        return ProportionalNavigationPolicy(**kwargs)
+    
+    elif policy_type == "lead":
+        from uav_defend.policies.baseline.lead_intercept_policy import LeadInterceptPolicy
+        kwargs.setdefault("state_source", "measurement")
+        return LeadInterceptPolicy(**kwargs)
+    
+    elif policy_type == "lead_kalman":
+        from uav_defend.policies.baseline.lead_intercept_policy import LeadInterceptPolicy
+        kwargs.setdefault("state_source", "kalman")
+        return LeadInterceptPolicy(**kwargs)
     
     else:
         raise ValueError(f"Policy type not implemented: {policy_type}")
@@ -105,8 +174,18 @@ def get_policy_name(policy) -> str:
     
     name_map = {
         "GreedyInterceptPolicy": "greedy",
+        "KalmanGreedyInterceptPolicy": "kalman_greedy",
         "RandomPolicy": "random",
         "PPOPolicyWrapper": "ppo",
+        "PPOKalmanPolicyWrapper": "ppo_kalman",
     }
+    
+    if class_name == "ProportionalNavigationPolicy":
+        state_source = getattr(policy, "state_source", "measurement")
+        return "pn_kalman" if state_source == "kalman" else "pn"
+    
+    if class_name == "LeadInterceptPolicy":
+        state_source = getattr(policy, "state_source", "measurement")
+        return "lead_kalman" if state_source == "kalman" else "lead"
     
     return name_map.get(class_name, class_name.lower())

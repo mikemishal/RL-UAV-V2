@@ -31,6 +31,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 import numpy as np
 
 from uav_defend.envs import SoldierEnv
+from uav_defend.config import EnvConfig
 from uav_defend.policies.rl import PPOPolicyWrapper
 
 
@@ -64,8 +65,10 @@ def run_episode(
     
     policy = PPOPolicyWrapper.load(model_path, deterministic=deterministic)
     
-    # Create environment
-    env = SoldierEnv()
+    # Create environment. Explicit Direct/measurement-track configuration
+    # (this script debugs PPOPolicyWrapper, the Direct track's PPO model --
+    # never rely on the environment's default).
+    env = SoldierEnv(config=EnvConfig(use_kalman_tracking=False))
     obs, info = env.reset(seed=seed)
     policy.reset()
     
